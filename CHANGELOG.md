@@ -33,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 
+- Allow setting both crop and aspect mode at the same time ([59fa623](https://github.com/vzhd1701/gridplayer/commit/59fa62321410464523169d91bb39004b5f6fa4eb))
 - Parse arguments before show to speed up playlist load ([e8f7ca7](https://github.com/vzhd1701/gridplayer/commit/e8f7ca7a59962c6466a1f6c0314a7ba78ccdb3d2))
 - Don't start instance listener if single instance is disabled ([6d5d6de](https://github.com/vzhd1701/gridplayer/commit/6d5d6de547f62e5383a27611196df2d8b477edc6))
 - Wait for vlc process cleanup on linux to avoid crashes ([04821b1](https://github.com/vzhd1701/gridplayer/commit/04821b1aff7cc761492f2f5ae4c2d74591d63e11))
