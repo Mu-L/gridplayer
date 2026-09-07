@@ -1,11 +1,12 @@
 from multiprocessing import Array, Lock, Value
 
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import QRectF, Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QImage, QPainter, QPixmap
 from PyQt5.QtWidgets import QFrame, QGraphicsPixmapItem, QGraphicsScene, QGraphicsView
 
 from gridplayer.multiprocess.safe_shared_memory import SafeSharedMemory
 from gridplayer.params.static import PLAYER_ID_LENGTH, VideoCrop
+from gridplayer.utils.aspect_calc import calc_crop_region
 from gridplayer.utils.qt import QT_ASPECT_MAP, qt_connect
 from gridplayer.vlc_player.image_decoder import ImageDecoder
 from gridplayer.vlc_player.instance import InstanceProcessVLC
@@ -291,16 +292,11 @@ class VideoFrameVLCSW(VideoFrameVLCProcess):
         aspect = QT_ASPECT_MAP[self._aspect]
 
         if self._crop != VideoCrop(0, 0, 0, 0):
-            cropped = (
-                self._videoitem.shape()
-                .boundingRect()
-                .adjusted(
-                    -self._crop.Left,
-                    self._crop.Top,
-                    self._crop.Right,
-                    -self._crop.Bottom,
-                )
+            item_rect = self._videoitem.boundingRect()
+            x, y, width, height = calc_crop_region(
+                (int(item_rect.width()), int(item_rect.height())), self._crop
             )
+            cropped = QRectF(item_rect.x() + x, item_rect.y() + y, width, height)
 
             self.video_surface.setSceneRect(cropped)
             self.video_surface.fitInView(cropped, aspect)

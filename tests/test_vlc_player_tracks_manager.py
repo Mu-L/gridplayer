@@ -192,6 +192,15 @@ class TestConvertVideoTrack:
         assert result.video_dimensions == (1920, 1080)
         assert result.fps == 30.0
 
+    def test_zero_metadata_size_uses_fallback(self):
+        track = make_video_track(video_content=FakeVideoContent(width=0, height=0))
+
+        result = _convert_video_track(
+            track, media_uri="live.ts", fallback_size=(1280, 720)
+        )
+
+        assert result.video_dimensions == (1280, 720)
+
     def test_none_language_and_description(self):
         track = make_video_track(language=None, description=None)
 

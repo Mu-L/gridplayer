@@ -113,8 +113,7 @@ class SetCropDialog(QDialog):
       video_defaults editor; only the margin spins are shown (there is no
       frame to preview); the result is read via get_crop().
     - video mode (live_block set): shows the schematic preview and applies
-      changes to the playing video live; cancel restores the original crop
-      and aspect mode.
+      changes to the playing video live; cancel restores the original crop.
     """
 
     def __init__(
@@ -129,9 +128,6 @@ class SetCropDialog(QDialog):
 
         self._block = live_block
         self._original_crop = crop
-        self._original_aspect = (
-            live_block.video_params.aspect_mode if live_block is not None else None
-        )
 
         self.setWindowTitle(translate("Dialog - Set Crop", "Set Crop"))
         self.setModal(True)
@@ -228,9 +224,6 @@ class SetCropDialog(QDialog):
         if self._block is not None:
             if self._block.video_params.crop != self._original_crop:
                 self._block.set_crop(self._original_crop, is_silent=True)
-
-            if self._block.video_params.aspect_mode != self._original_aspect:
-                self._block.set_aspect(self._original_aspect)
 
         super().reject()
 

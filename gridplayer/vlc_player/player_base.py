@@ -9,11 +9,10 @@ from gridplayer.params import env
 from gridplayer.params.static import (
     VIDEO_END_LOOP_MARGIN_MS,
     AudioChannelMode,
-    VideoCrop,
     VideoTransform,
 )
 from gridplayer.settings import Settings
-from gridplayer.utils.aspect_calc import calc_crop, calc_resize_scale
+from gridplayer.utils.aspect_calc import calc_resize_scale, calc_view_geometry
 from gridplayer.utils.misc import is_url
 from gridplayer.vlc_player.libvlc import vlc
 from gridplayer.vlc_player.player_event_manager import EventManager
@@ -89,6 +88,7 @@ class VlcPlayerBase(ABC):
         self._media_input_vlc = None
         self._media_options = []
         self._tracks_manager: TracksManager | None = None
+        self._last_video_size = (0, 0)
 
         self._event_manager = EventManager()
         self._event_waiter = EventWaiter()
@@ -321,6 +321,9 @@ class VlcPlayerBase(ABC):
     @abstractmethod
     def notify_snapshot_taken(self, snapshot_path): ...
 
+    def notify_video_dimensions(self, width: int, height: int) -> None:  # noqa: B027
+        """Forward decoded size to the widget. Default is a no-op."""
+
     @abstractmethod
     def loopback_load_video_st2_set_media(self): ...
 
@@ -338,6 +341,7 @@ class VlcPlayerBase(ABC):
         self._get_time_retries = 0
 
         self.media_input = media_input
+        self._last_video_size = (0, 0)
 
         self._log.info(f"Loading {self.media_input.uri}")
 
@@ -432,6 +436,8 @@ class VlcPlayerBase(ABC):
 
         if not self._try_set_initial_state():
             return
+
+        self._fill_missing_track_dimensions()
 
         self.is_video_initialized = True
 
@@ -530,6 +536,13 @@ class VlcPlayerBase(ABC):
             return 0, 0
 
         video_size = self._media_player.video_get_size()
+        if all(video_size):
+            self._last_video_size = video_size
+        elif all(self._last_video_size):
+            # Live stop/play recreates the vout; cb_vout can fire before
+            # video_get_size() is populated again. Reuse the last decoded size
+            # so FIT/STRETCH crop geometry is not computed as letterbox.
+            video_size = self._last_video_size
 
         rotation_transforms = {
             VideoTransform.ROTATE_90,
@@ -547,34 +560,42 @@ class VlcPlayerBase(ABC):
     def adjust_view(self, size, aspect, scale, crop):
         # Keep the pane size current on every call so the post-vout re-apply
         # (cb_vout) and _adjust_view_initial use the real laid-out size, not a
-        # stale pre-layout value captured at load.
+        # stale pre-layout value captured at load. Live streams stop/play on
+        # pause, which recreates the vout and re-applies from media_input —
+        # crop/aspect/scale must be persisted here too (the widget copy of
+        # Video is a different object after the multiprocess pickle).
         if self.media_input is not None:
             self.media_input.size = size
+            self.media_input.video.aspect_mode = aspect
+            self.media_input.video.scale = scale
+            self.media_input.video.crop = crop
 
         if self.media is None:
             # video not loaded yet, video frame resized on init
             return
 
-        crop_aspect, crop_geometry = calc_crop(self.video_dimensions, size, aspect)
+        if self._fill_missing_track_dimensions():
+            width, height = self._media_player.video_get_size()
+            self.notify_video_dimensions(width, height)
 
-        if crop == VideoCrop(0, 0, 0, 0):
-            crop_geometry_fmt = "{}:{}".format(*crop_geometry)
-        else:
-            crop_geometry_fmt = "+{}+{}+{}+{}".format(*crop)
+        aspect_override, crop_geometry_fmt = calc_view_geometry(
+            self.video_dimensions, size, aspect, crop
+        )
 
         self._log.debug(
             f"size: {size}"
             f", aspect: {aspect}"
             f", scale: {scale}"
             f", crop: {crop}"
-            f", crop_aspect: {crop_aspect}"
-            f", crop_geo: {crop_geometry}"
+            f", aspect_override: {aspect_override}"
             f", crop_geo_fmt: {crop_geometry_fmt}"
         )
 
-        resize_scale = calc_resize_scale(self.video_dimensions, size, aspect, scale)
+        resize_scale = calc_resize_scale(
+            self.video_dimensions, size, aspect, scale, crop
+        )
 
-        self._media_player.video_set_aspect_ratio("{}:{}".format(*crop_aspect))
+        self._media_player.video_set_aspect_ratio(aspect_override)
         # https://github.com/videolan/vlc/blob/e9eceaed4d838dbd84638bfb2e4bdd08294163b1/src/video_output/display.c#L887
         self._media_player.video_set_crop_geometry(crop_geometry_fmt)
         self._media_player.video_set_scale(resize_scale)
@@ -723,6 +744,31 @@ class VlcPlayerBase(ABC):
             cur_video_track_id=self._tracks_manager.current_video_track_id,
             cur_audio_track_id=self._tracks_manager.current_audio_track_id,
         )
+
+    def _fill_missing_track_dimensions(self) -> bool:
+        """Copy decoded size onto tracks that have no metadata size.
+
+        Live streams often report 0x0 in the container; video_get_size() is
+        known after vout. Returns True if any track was updated.
+        """
+        if self.media is None or self._media_player is None:
+            return False
+
+        width, height = self._media_player.video_get_size()
+        if not width or not height:
+            return False
+
+        tracks = getattr(self.media, "video_tracks", None)
+        if not isinstance(tracks, dict):
+            return False
+
+        updated = False
+        for track in tracks.values():
+            if not all(track.video_dimensions):
+                track.video_dimensions = (width, height)
+                updated = True
+
+        return updated
 
     def _get_duration(self):
         if self.media_input.is_live:

@@ -1,10 +1,13 @@
 import pytest
 from types import SimpleNamespace
 
+from PyQt5.QtCore import QSize, Qt
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QDialog
 
 from gridplayer.dialogs.crop import QCompactCropPicker, SetCropDialog
 from gridplayer.params.static import VideoAspect, VideoCrop, VideoTransform
+from gridplayer.widgets.video_frame_vlc_base import PauseSnapshot
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -27,7 +30,6 @@ class _FakeBlock:
     def set_crop(self, crop, is_silent=False):
         clamped = VideoCrop(*(max(v, 0) for v in crop))
         if self.video_params.crop != clamped:
-            self.video_params.aspect_mode = VideoAspect.NONE
             self.video_params.crop = clamped
         self.applied.append((self.video_params.crop, is_silent))
 
@@ -70,19 +72,19 @@ def test_dialog_ok_commits_crop_loudly():
     assert dialog.result() == QDialog.Accepted
 
 
-def test_dialog_cancel_restores_crop_and_aspect():
+def test_dialog_cancel_restores_crop_without_changing_aspect():
     block = _FakeBlock(aspect=VideoAspect.FIT)
     dialog = SetCropDialog.for_video_block(block)
 
     dialog._spins["left"].setValue(15)
-    assert block.video_params.aspect_mode is VideoAspect.NONE
+    assert block.video_params.aspect_mode is VideoAspect.FIT
 
     dialog.reject()
 
     assert block.applied[-1] == (VideoCrop(0, 0, 0, 0), True)
     assert block.video_params.crop == VideoCrop(0, 0, 0, 0)
     assert block.video_params.aspect_mode is VideoAspect.FIT
-    assert block.aspect_calls == [VideoAspect.FIT]
+    assert block.aspect_calls == []
 
 
 def test_dialog_cancel_without_changes_is_noop():
@@ -187,6 +189,19 @@ def test_dialog_value_mode_edits_without_block():
 
     assert dialog.result() == QDialog.Accepted
     assert dialog._spin_crop() == VideoCrop(1, 2, 3, 4)
+
+
+def test_pause_snapshot_does_not_crop_displayed_frame():
+    """VLC snapshots the already-cropped output; scaling must not crop again."""
+    snapshot = PauseSnapshot()
+    pixmap = QPixmap(640, 360)
+    pixmap.fill(Qt.black)
+    snapshot._snapshot_pixmap = pixmap
+
+    snapshot.adjust_view(QSize(640, 360), VideoAspect.FIT, 1.0)
+
+    result = snapshot.pixmap()
+    assert (result.width(), result.height()) == (640, 360)
 
 
 def test_compact_picker_opens_value_mode_dialog(mocker):

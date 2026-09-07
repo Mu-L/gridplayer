@@ -1070,7 +1070,6 @@ class VideoBlock(QWidget):
         )
 
         if self.video_params.crop != crop:
-            self.video_params.aspect_mode = VideoAspect.NONE
             self.video_params.crop = crop
             self.video_driver.set_crop(self.video_params.crop)
 

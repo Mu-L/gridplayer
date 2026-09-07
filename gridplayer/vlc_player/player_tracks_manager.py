@@ -23,8 +23,12 @@ class TracksManager:
         if self._is_audio_only:
             return {}
 
+        fallback_size = (0, 0)
+        if self._media_player is not None:
+            fallback_size = self._media_player.video_get_size()
+
         return {
-            t.id: _convert_video_track(t, self._media_uri)
+            t.id: _convert_video_track(t, self._media_uri, fallback_size=fallback_size)
             for t in self._media_tracks
             if t.type == vlc.TrackType.video
         }
@@ -155,7 +159,7 @@ def _decode_track_field(
     return default
 
 
-def _convert_video_track(video_track, media_uri=None):
+def _convert_video_track(video_track, media_uri=None, fallback_size=(0, 0)):
     vt_content = video_track.u.video.contents
 
     if all([vt_content.frame_rate_num, vt_content.frame_rate_den]):
@@ -169,8 +173,12 @@ def _convert_video_track(video_track, media_uri=None):
         "track_id": video_track.id,
     }
 
+    width, height = vt_content.width, vt_content.height
+    if not (width and height) and all(fallback_size):
+        width, height = fallback_size
+
     return VideoTrack(
-        video_dimensions=(vt_content.width, vt_content.height),
+        video_dimensions=(width, height),
         fps=fps,
         bitrate=video_track.bitrate,
         language=_decode_track_field(

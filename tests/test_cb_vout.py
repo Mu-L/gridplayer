@@ -5,6 +5,7 @@ import pytest
 import gridplayer.vlc_player.player_base as player_base_mod
 from gridplayer.params.static import VideoAspect, VideoCrop
 from gridplayer.vlc_player.player_base import VlcPlayerBase
+from gridplayer.vlc_player.static import Media, VideoTrack
 
 
 class _MinimalPlayer(VlcPlayerBase):
@@ -86,6 +87,146 @@ def test_default_seam_routes_to_apply_media_input_view(monkeypatch):
 
     recorded = {name for name, _ in media_player.calls}
     assert recorded == {"aspect_ratio", "crop_geometry", "scale"}
+
+
+def test_adjust_view_crop_stretch_compensates_override():
+    """Pixel crop + Stretch: VLC derives the override SAR from the pre-crop
+    dims, so the override must be compensated for the cropped region."""
+    player, media_player = _make_player(aspect_mode=VideoAspect.STRETCH)
+
+    player.adjust_view(
+        size=(640, 360),
+        aspect=VideoAspect.STRETCH,
+        scale=1.0,
+        crop=VideoCrop(160, 0, 160, 0),
+    )
+
+    # Region 320x360 (8:9) must display as 16:9 -> override 32:9.
+    assert media_player.calls == [
+        ("aspect_ratio", "32:9"),
+        ("crop_geometry", "+160+0+160+0"),
+        ("scale", 0),
+    ]
+
+
+def test_adjust_view_crop_fit_extends_borders():
+    """Pixel crop + Fit: the borders are extended until the visible region
+    matches the pane ratio, so VLC's auto-fit fills the pane exactly."""
+    player, media_player = _make_player(aspect_mode=VideoAspect.FIT)
+
+    player.adjust_view(
+        size=(640, 360),
+        aspect=VideoAspect.FIT,
+        scale=1.0,
+        crop=VideoCrop(160, 0, 160, 0),
+    )
+
+    # Region 320x360 -> crop down to 320x180 (16:9) -> 90 top/bottom.
+    assert media_player.calls == [
+        ("aspect_ratio", "640:360"),
+        ("crop_geometry", "+160+90+160+90"),
+        ("scale", 0),
+    ]
+
+
+def test_adjust_view_persists_crop_for_vout_reapply():
+    """Live unpause stop/play recreates the vout; cb_vout re-applies from
+    media_input, so crop/aspect/scale must be written back on each adjust."""
+    player, media_player = _make_player(aspect_mode=VideoAspect.FIT)
+    crop = VideoCrop(160, 0, 160, 0)
+
+    player.adjust_view(
+        size=(640, 360),
+        aspect=VideoAspect.FIT,
+        scale=1.0,
+        crop=crop,
+    )
+
+    assert player.media_input.video.crop == crop
+    assert player.media_input.video.aspect_mode is VideoAspect.FIT
+
+    media_player.calls.clear()
+    player._apply_media_input_view()
+
+    assert media_player.calls == [
+        ("aspect_ratio", "640:360"),
+        ("crop_geometry", "+160+90+160+90"),
+        ("scale", 0),
+    ]
+
+
+def test_apply_media_input_view_uses_cached_size_when_vout_size_missing():
+    """After live stop/play, cb_vout can run while video_get_size is still
+    0x0. FIT+crop must not fall back to letterbox (aspect None)."""
+    player, media_player = _make_player(aspect_mode=VideoAspect.FIT)
+    crop = VideoCrop(160, 0, 160, 0)
+
+    player.adjust_view(
+        size=(640, 360),
+        aspect=VideoAspect.FIT,
+        scale=1.0,
+        crop=crop,
+    )
+
+    media_player.video_get_size = lambda num=0: (0, 0)
+    media_player.calls.clear()
+
+    player._apply_media_input_view()
+
+    assert media_player.calls == [
+        ("aspect_ratio", "640:360"),
+        ("crop_geometry", "+160+90+160+90"),
+        ("scale", 0),
+    ]
+
+
+def test_adjust_view_fills_missing_track_dimensions():
+    player, media_player = _make_player()
+    player.notify_video_dimensions = Mock()
+    player.media = Media(
+        length=-1,
+        video_tracks={
+            1: VideoTrack(
+                video_dimensions=(0, 0),
+                fps=None,
+                codec="H264",
+                bitrate=0,
+                language=None,
+                description=None,
+            )
+        },
+        audio_tracks={},
+        cur_video_track_id=1,
+    )
+
+    player.adjust_view(
+        size=(640, 360),
+        aspect=VideoAspect.FIT,
+        scale=1.0,
+        crop=VideoCrop(0, 0, 0, 0),
+    )
+
+    assert player.media.video_tracks[1].video_dimensions == (640, 360)
+    player.notify_video_dimensions.assert_called_once_with(640, 360)
+
+
+def test_adjust_view_crop_none_letterboxes_user_region():
+    """Pixel crop + None: keep the user borders and native aspect so the
+    visible region is letterboxed in the pane."""
+    player, media_player = _make_player(aspect_mode=VideoAspect.NONE)
+
+    player.adjust_view(
+        size=(640, 360),
+        aspect=VideoAspect.NONE,
+        scale=1.0,
+        crop=VideoCrop(160, 0, 160, 0),
+    )
+
+    assert media_player.calls == [
+        ("aspect_ratio", "640:360"),
+        ("crop_geometry", "+160+0+160+0"),
+        ("scale", 0),
+    ]
 
 
 def test_cb_vout_noop_when_audio_only(monkeypatch):

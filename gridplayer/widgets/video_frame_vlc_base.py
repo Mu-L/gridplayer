@@ -77,6 +77,7 @@ class PauseSnapshot(QLabel):
         if self._snapshot_pixmap is None:
             return
 
+        # video_take_snapshot captures the displayed (already cropped) frame.
         scaled_size = QSize(
             int(size.width() * scale),
             int(size.height() * scale),
@@ -188,6 +189,7 @@ class VideoFrameVLC(QWidget, metaclass=QABC):
             (self.video_driver.time_changed, self.time_changed_emit),
             (self.video_driver.load_finished, self.load_video_finish),
             (self.video_driver.snapshot_taken, self.snapshot_taken),
+            (self.video_driver.video_dimensions_changed, self.set_track_dimensions),
             (self.video_driver.error, self.error_emit),
             (self.video_driver.crash, self.crash_emit),
             (self.video_driver.update_status, self.update_status_emit),
@@ -259,6 +261,9 @@ class VideoFrameVLC(QWidget, metaclass=QABC):
         if self.is_live_video and not is_paused:
             self.pause_snapshot.hide()
             self.pause_snapshot.reset()
+            # Live pause is stop/play, which rebuilds the vout. Re-apply crop
+            # and aspect from the widget now that playback has resumed.
+            self.adjust_view()
 
         self._is_status_change_in_progress = False
 
@@ -271,9 +276,6 @@ class VideoFrameVLC(QWidget, metaclass=QABC):
         self._aspect = media_input.video.aspect_mode
         self._scale = media_input.video.scale
         self._crop = media_input.video.crop
-
-        if self._crop != VideoCrop(0, 0, 0, 0):
-            self._aspect = VideoAspect.NONE
 
         self.video_driver.load_video(media_input)
 
@@ -356,10 +358,18 @@ class VideoFrameVLC(QWidget, metaclass=QABC):
         self.adjust_view()
 
     def set_crop(self, crop) -> None:
-        self._aspect = VideoAspect.NONE
         self._crop = crop
 
         self.adjust_view()
+
+    def set_track_dimensions(self, width: int, height: int) -> None:
+        if self.media is None or not width or not height:
+            return
+
+        size = (width, height)
+        for track in self.media.video_tracks.values():
+            if not all(track.video_dimensions):
+                track.video_dimensions = size
 
     def set_audio_track(self, track_id):
         self.media.cur_audio_track_id = track_id

@@ -12,6 +12,7 @@ class VLCVideoDriver(QObject, metaclass=QABC):
     playback_status_changed = pyqtSignal(int)
     load_finished = pyqtSignal(Media)
     snapshot_taken = pyqtSignal(str)
+    video_dimensions_changed = pyqtSignal(int, int)
 
     error = pyqtSignal(str)
     crash = pyqtSignal(str)
@@ -42,6 +43,9 @@ class VLCVideoDriver(QObject, metaclass=QABC):
 
     def snapshot_taken_emit(self, snapshot_path):
         self.snapshot_taken.emit(snapshot_path)
+
+    def set_video_dimensions(self, width, height):
+        self.video_dimensions_changed.emit(width, height)
 
     @abstractmethod
     def play(self): ...
