@@ -37,7 +37,7 @@ def make_dark(svg_path):
 
     svg = svg.replace("<svg", '<svg fill="white"')
 
-    with open(svg_path, "w") as f:
+    with open(svg_path, "w", newline="\n") as f:
         f.write(svg)
 
 
