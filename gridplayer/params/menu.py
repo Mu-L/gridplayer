@@ -6,6 +6,10 @@ SUBMENUS = MappingProxyType(
     {
         "Jump (to)": {"title": translate("Actions", "Jump (to)"), "icon": "jump-to"},
         "Loop": {"title": translate("Actions", "Loop"), "icon": "loop"},
+        "When Finished": {
+            "title": translate("Actions", "When Finished"),
+            "icon": "empty",
+        },
         "Speed": {"title": translate("Actions", "Speed"), "icon": "speed"},
         "Zoom": {"title": translate("Actions", "Zoom"), "icon": "zoom"},
         "Aspect": {"title": translate("Actions", "Aspect"), "icon": "aspect"},
@@ -45,6 +49,7 @@ SECTIONS = MappingProxyType(
     {
         "video_active": [
             "Play / Pause",
+            "Stop",
             "---",
             "Single Mode ON / OFF",
             "Previous Video",
@@ -162,10 +167,18 @@ SECTIONS = MappingProxyType(
                     "Set Loop Start",
                     "Set Loop End",
                     "Loop Reset",
+                ),
+                (
+                    "When Finished",
+                    "When Finished Loop File",
                     "---",
-                    "Repeat Single File",
-                    "Repeat Directory",
-                    "Repeat Directory (Shuffle)",
+                    "When Finished Next",
+                    "When Finished Previous",
+                    "When Finished Shuffle",
+                    "---",
+                    "When Finished Pause",
+                    "When Finished Stop",
+                    "When Finished Close",
                 ),
                 (
                     "Speed",
@@ -186,6 +199,7 @@ SECTIONS = MappingProxyType(
                 "Play / Pause [ALL]",
                 "Play [ALL]",
                 "Pause [ALL]",
+                "Stop [ALL]",
                 "---",
                 (
                     "Audio",
@@ -292,10 +306,18 @@ SECTIONS = MappingProxyType(
                         "Set Loop Start [ALL]",
                         "Set Loop End [ALL]",
                         "Loop Reset [ALL]",
+                    ),
+                    (
+                        "When Finished",
+                        "When Finished Loop File [ALL]",
                         "---",
-                        "Repeat Single File [ALL]",
-                        "Repeat Directory [ALL]",
-                        "Repeat Directory (Shuffle) [ALL]",
+                        "When Finished Next [ALL]",
+                        "When Finished Previous [ALL]",
+                        "When Finished Shuffle [ALL]",
+                        "---",
+                        "When Finished Pause [ALL]",
+                        "When Finished Stop [ALL]",
+                        "When Finished Close [ALL]",
                     ),
                     (
                         "Speed",

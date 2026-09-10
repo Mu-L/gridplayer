@@ -15,7 +15,8 @@ from gridplayer.params.static import (
     SeekSyncMode,
     UnsavedChangesMode,
     VideoAspect,
-    VideoRepeat,
+    VideoEndAction,
+    VideoInitialState,
     VideoTransform,
 )
 from gridplayer.utils.qt import translate
@@ -154,11 +155,23 @@ def _transforms() -> dict:
     }
 
 
-def _repeat_modes() -> dict:
+def _end_actions() -> dict:
     return {
-        VideoRepeat.SINGLE_FILE: _t("Single File"),
-        VideoRepeat.DIR: _t("Directory"),
-        VideoRepeat.DIR_SHUFFLE: _t("Directory (Shuffle)"),
+        VideoEndAction.LOOP_FILE: _t("Loop this file"),
+        VideoEndAction.NEXT_FILE: _t("Next in folder"),
+        VideoEndAction.PREVIOUS_FILE: _t("Previous in folder"),
+        VideoEndAction.SHUFFLE_FILE: _t("Random in folder"),
+        VideoEndAction.PAUSE: _t("Pause at start"),
+        VideoEndAction.STOP: _t("Stop"),
+        VideoEndAction.CLOSE: _t("Close"),
+    }
+
+
+def _initial_states() -> dict:
+    return {
+        VideoInitialState.PLAYING: _t("Playing"),
+        VideoInitialState.PAUSED: _t("Paused"),
+        VideoInitialState.STOPPED: _t("Stopped"),
     }
 
 
@@ -232,7 +245,7 @@ PLAYLIST_FIELDS: tuple[SettingField, ...] = (
         playlist_attr="save_state",
         kind=FieldKind.CHECKBOX,
         section=_t("Saving / Restoring"),
-        label=_t("Save videos playing / paused status"),
+        label=_t("Save videos playback status"),
     ),
     _f(
         settings_key="playlist/pause_background_videos",
@@ -469,12 +482,12 @@ VIDEO_FIELDS: tuple[SettingField, ...] = (
         combo_values=_transforms,
     ),
     _f(
-        settings_key="video_defaults/repeat",
-        video_attr="repeat",
+        settings_key="video_defaults/end_action",
+        video_attr="end_action",
         kind=FieldKind.COMBO,
         section=_t("Playback"),
-        label=_t("Repeat mode"),
-        combo_values=_repeat_modes,
+        label=_t("When finished"),
+        combo_values=_end_actions,
     ),
     _f(
         settings_key="video_defaults/random_loop",
@@ -484,11 +497,12 @@ VIDEO_FIELDS: tuple[SettingField, ...] = (
         label=_t("Start at random position"),
     ),
     _f(
-        settings_key="video_defaults/paused",
-        video_attr="paused",
-        kind=FieldKind.CHECKBOX,
+        settings_key="video_defaults/initial_state",
+        video_attr="initial_state",
+        kind=FieldKind.COMBO,
         section=_t("Playback"),
-        label=_t("Paused"),
+        label=_t("Initial state"),
+        combo_values=_initial_states,
     ),
     _f(
         settings_key="video_defaults/rate",

@@ -38,6 +38,7 @@ class ActiveBlockManager(ManagerBase):
             "is_active_runtime_param_set_to": self.is_active_runtime_param_set_to,
             "is_active_param_set_to": self.is_active_param_set_to,
             "is_active_initialized": self.is_active_initialized,
+            "is_active_playable": self.is_active_playable,
             "is_active_seekable": self.is_active_seekable,
             "is_active_live": self.is_active_live,
             "is_active_multistream": self.is_active_multistream,
@@ -62,9 +63,9 @@ class ActiveBlockManager(ManagerBase):
         if self.is_no_active_block:
             return None
 
-        is_inactive_command = command in {"switch_stream_quality", "reload", "close"}
+        is_loading_command = command in {"switch_stream_quality", "reload", "close"}
 
-        if not is_inactive_command and not self.is_active_initialized():
+        if not self.is_active_playable() and not is_loading_command:
             return None
 
         return getattr(self._ctx.active_block, command)(*args)
@@ -84,6 +85,12 @@ class ActiveBlockManager(ManagerBase):
             return False
 
         return self._ctx.active_block.is_video_initialized
+
+    def is_active_playable(self):
+        if self.is_no_active_block:
+            return False
+
+        return self._ctx.active_block.is_playable
 
     def is_active_param_set_to(self, param_name, param_value):
         if self.is_no_active_block:
@@ -114,7 +121,7 @@ class ActiveBlockManager(ManagerBase):
         return self._ctx.active_block.is_live
 
     def is_active_local_file(self):
-        if not self.is_active_initialized():
+        if not self.is_active_playable():
             return False
 
         return isinstance(self._ctx.active_block.video_params.uri, Path)

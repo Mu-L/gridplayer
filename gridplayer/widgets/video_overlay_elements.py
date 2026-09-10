@@ -558,8 +558,8 @@ class OverlayBorder(OverlayWidget):
         )
 
 
-class OverlayDropIndicator(OverlayWidget):
-    """Full-block drag target glyph: arrows, swap, source asterisk, or dot."""
+class OverlayDiscBadge(OverlayWidget):
+    """Centered disc badge used by drag targets."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -567,7 +567,6 @@ class OverlayDropIndicator(OverlayWidget):
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.setMinimumSize(0, 0)
 
-        self._indicator = DropIndicator.NONE
         self._circle_color = QColor(0, 0, 0)
         self._glyph_color = QColor(255, 255, 255)
         self.hide()
@@ -577,28 +576,11 @@ class OverlayDropIndicator(OverlayWidget):
         self._glyph_color = QColor(glyph)
         self.update()
 
-    def set_indicator(self, indicator: DropIndicator):
-        if self._indicator == indicator:
-            if indicator == DropIndicator.NONE:
-                self.hide()
-            return
-
-        self._indicator = indicator
-
-        if indicator == DropIndicator.NONE:
-            self.hide()
-            self.clearMask()
-            return
-
-        self._update_mask()
-        self.show()
-        self.update()
-
     def resizeEvent(self, event) -> None:
         self._update_mask()
 
     def paintEvent(self, event) -> None:
-        if self._indicator == DropIndicator.NONE:
+        if not self._is_badge_visible():
             return
 
         painter = QPainter(self)
@@ -611,7 +593,7 @@ class OverlayDropIndicator(OverlayWidget):
             mask = QRegion(disc_rect, QRegion.Ellipse)
             self.setMask(mask)
             painter.setClipRegion(mask)
-            painter.fillRect(disc_rect, QColor(60, 60, 60))
+            painter.fillRect(disc_rect, self._circle_color)
             painter.setRenderHint(QPainter.Antialiasing)
             self._draw_glyph(painter, QRectF(disc_rect))
             return
@@ -622,18 +604,11 @@ class OverlayDropIndicator(OverlayWidget):
         painter.drawEllipse(circle)
         self._draw_glyph(painter, circle)
 
+    def _is_badge_visible(self) -> bool:
+        return self.isVisible()
+
     def _draw_glyph(self, painter: QPainter, circle: QRectF):
-        painter.setBrush(QBrush(self._glyph_color))
-        if self._indicator == DropIndicator.SWAP:
-            self._draw_swap(painter, circle)
-        elif self._indicator == DropIndicator.SOURCE:
-            self._draw_asterisk(painter, circle)
-        elif self._indicator == DropIndicator.DOT:
-            self._draw_dot(painter, circle)
-        elif self._indicator == DropIndicator.REPLACE:
-            self._draw_replace(painter, circle)
-        else:
-            self._draw_arrow(painter, circle)
+        raise NotImplementedError
 
     def _is_parent_opaque(self) -> bool:
         return bool(getattr(self.parent(), "is_opaque", False))
@@ -651,11 +626,59 @@ class OverlayDropIndicator(OverlayWidget):
         return self._glyph_rect().toAlignedRect()
 
     def _update_mask(self):
-        if not self._is_parent_opaque() or self._indicator == DropIndicator.NONE:
+        if not self._is_parent_opaque() or not self._is_badge_visible():
             self.clearMask()
             return
 
         self.setMask(QRegion(self._glyph_mask_rect(), QRegion.Ellipse))
+
+    def _show_badge(self):
+        self._update_mask()
+        self.show()
+        self.update()
+
+    def _hide_badge(self):
+        self.hide()
+        self.clearMask()
+
+
+class OverlayDropIndicator(OverlayDiscBadge):
+    """Full-block drag target glyph: arrows, swap, source asterisk, or dot."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self._indicator = DropIndicator.NONE
+
+    def set_indicator(self, indicator: DropIndicator):
+        if self._indicator == indicator:
+            if indicator == DropIndicator.NONE:
+                self._hide_badge()
+            return
+
+        self._indicator = indicator
+
+        if indicator == DropIndicator.NONE:
+            self._hide_badge()
+            return
+
+        self._show_badge()
+
+    def _is_badge_visible(self) -> bool:
+        return self._indicator != DropIndicator.NONE
+
+    def _draw_glyph(self, painter: QPainter, circle: QRectF):
+        painter.setBrush(QBrush(self._glyph_color))
+        if self._indicator == DropIndicator.SWAP:
+            self._draw_swap(painter, circle)
+        elif self._indicator == DropIndicator.SOURCE:
+            self._draw_asterisk(painter, circle)
+        elif self._indicator == DropIndicator.DOT:
+            self._draw_dot(painter, circle)
+        elif self._indicator == DropIndicator.REPLACE:
+            self._draw_replace(painter, circle)
+        else:
+            self._draw_arrow(painter, circle)
 
     def _arrow_tip_degrees(self) -> float:
         return {

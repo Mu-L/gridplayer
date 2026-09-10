@@ -132,6 +132,12 @@ class PlayerProcessSingleVLCSW(VlcPlayerThreaded):
 
         super().play()
 
+    def stop(self):
+        if self.decoder is not None:
+            self.decoder.is_paused = True
+
+        super().stop()
+
     def set_pause(self, is_paused):
         self.decoder.is_paused = is_paused
 

@@ -27,7 +27,8 @@ from gridplayer.params.static import (
     VideoAspect,
     VideoCrop,
     VideoDriver,
-    VideoRepeat,
+    VideoEndAction,
+    VideoInitialState,
     VideoTransform,
 )
 from gridplayer.utils.app_dir import get_app_data_dir
@@ -76,11 +77,11 @@ _default_settings = {
     "playlist/overlay_timeout": 3,
     "video_defaults/aspect": VideoAspect.FIT,
     "video_defaults/transform": VideoTransform.NONE,
-    "video_defaults/repeat": VideoRepeat.SINGLE_FILE,
+    "video_defaults/end_action": VideoEndAction.LOOP_FILE,
     "video_defaults/audio_mode": AudioChannelMode.UNSET,
     "video_defaults/random_loop": False,
     "video_defaults/muted": True,
-    "video_defaults/paused": False,
+    "video_defaults/initial_state": VideoInitialState.PLAYING,
     "video_defaults/rate": 1.0,
     "video_defaults/scale": 1.0,
     "video_defaults/volume": 1.0,
@@ -138,6 +139,8 @@ class _Settings:
                 self.settings.remove(old_key)
 
         self._migrate_track_changes_flag()
+        self._migrate_paused_to_initial_state()
+        self._migrate_repeat_to_end_action()
 
     def _migrate_track_changes_flag(self):
         """Legacy bool "warn about unsaved changes" flag → close mode enum."""
@@ -153,6 +156,46 @@ class _Settings:
             self.settings.setValue(new_key, mode)
 
         self.settings.remove(old_key)
+
+    def _migrate_paused_to_initial_state(self):
+        """Legacy bool paused default → Playing / Paused initial state."""
+        old_key = "video_defaults/paused"
+        new_key = "video_defaults/initial_state"
+
+        if not self.settings.contains(old_key):
+            return
+
+        if not self.settings.contains(new_key):
+            legacy_value = str(self.settings.value(old_key)).lower()
+            state = "paused" if legacy_value in {"true", "1"} else "playing"
+            self.settings.setValue(new_key, state)
+
+        self.settings.remove(old_key)
+
+    def _migrate_repeat_to_end_action(self):
+        """Legacy Repeat enum + key → When finished / end_action."""
+        old_key = "video_defaults/repeat"
+        new_key = "video_defaults/end_action"
+        aliases = {
+            "none": VideoEndAction.STOP.value,
+            "single_file": VideoEndAction.LOOP_FILE.value,
+            "dir": VideoEndAction.NEXT_FILE.value,
+            "dir_shuffle": VideoEndAction.SHUFFLE_FILE.value,
+        }
+
+        if self.settings.contains(old_key) and not self.settings.contains(new_key):
+            value = self.settings.value(old_key)
+            if isinstance(value, str):
+                value = aliases.get(value, value)
+            self.settings.setValue(new_key, value)
+        if self.settings.contains(old_key):
+            self.settings.remove(old_key)
+
+        if not self.settings.contains(new_key):
+            return
+        current = self.settings.value(new_key)
+        if isinstance(current, str) and current in aliases:
+            self.settings.setValue(new_key, aliases[current])
 
     def get(self, setting):
         setting_type = type(_default_settings[setting])

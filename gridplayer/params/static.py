@@ -68,10 +68,20 @@ class VideoTransform(AutoName):
     NONE = auto()
 
 
-class VideoRepeat(AutoName):
-    SINGLE_FILE = auto()
-    DIR = auto()
-    DIR_SHUFFLE = auto()
+class VideoEndAction(AutoName):
+    LOOP_FILE = auto()
+    NEXT_FILE = auto()
+    PREVIOUS_FILE = auto()
+    SHUFFLE_FILE = auto()
+    PAUSE = auto()
+    STOP = auto()
+    CLOSE = auto()
+
+
+class VideoInitialState(AutoName):
+    PLAYING = auto()
+    PAUSED = auto()
+    STOPPED = auto()
 
 
 class VideoDriver(AutoName):

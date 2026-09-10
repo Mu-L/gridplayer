@@ -1,10 +1,10 @@
 import logging
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import uuid4
 
-from pydantic import UUID4, BaseModel, Field, ValidationError
+from pydantic import UUID4, BaseModel, Field, ValidationError, model_validator
 from pydantic_extra_types.color import Color
 
 from gridplayer.models.video_uri import VideoURI, parse_uri
@@ -16,10 +16,34 @@ from gridplayer.params.static import (
     AudioChannelMode,
     VideoAspect,
     VideoCrop,
-    VideoRepeat,
+    VideoEndAction,
+    VideoInitialState,
     VideoTransform,
 )
 from gridplayer.playlist_settings import session_field
+
+_LEGACY_END_ACTION = {
+    "none": VideoEndAction.STOP,
+    "single_file": VideoEndAction.LOOP_FILE,
+    "dir": VideoEndAction.NEXT_FILE,
+    "dir_shuffle": VideoEndAction.SHUFFLE_FILE,
+}
+
+
+def migrate_end_action(value):
+    if isinstance(value, str):
+        return _LEGACY_END_ACTION.get(value, value)
+    return value
+
+
+def _playback_state_from_legacy(data: dict):
+    if data.get("is_stopped"):
+        return VideoInitialState.STOPPED
+    if "is_paused" in data:
+        if data["is_paused"]:
+            return VideoInitialState.PAUSED
+        return VideoInitialState.PLAYING
+    return None
 
 
 class Video(BaseModel):
@@ -35,7 +59,7 @@ class Video(BaseModel):
     loop_start: int | None = None
     loop_end: int | None = None
 
-    repeat_mode: VideoRepeat = session_field("video_defaults/repeat")
+    end_action: VideoEndAction = session_field("video_defaults/end_action")
     is_start_random: bool = session_field("video_defaults/random_loop")
     rate: Annotated[float, Field(ge=MIN_RATE, le=MAX_RATE)] = session_field(
         "video_defaults/rate"
@@ -44,7 +68,7 @@ class Video(BaseModel):
     # Generic
     aspect_mode: VideoAspect = session_field("video_defaults/aspect")
     is_muted: bool = session_field("video_defaults/muted")
-    is_paused: bool = session_field("video_defaults/paused")
+    playback_state: VideoInitialState = session_field("video_defaults/initial_state")
     scale: Annotated[float, Field(ge=MIN_SCALE, le=MAX_SCALE)] = session_field(
         "video_defaults/scale"
     )
@@ -61,6 +85,33 @@ class Video(BaseModel):
     video_track_id: int | None = None
 
     audio_channel_mode: AudioChannelMode = session_field("video_defaults/audio_mode")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if "playback_state" not in data:
+            legacy_state = _playback_state_from_legacy(data)
+            if legacy_state is not None:
+                data["playback_state"] = legacy_state
+        data.pop("is_paused", None)
+        data.pop("is_stopped", None)
+        if "end_action" not in data and "repeat_mode" in data:
+            data["end_action"] = data.pop("repeat_mode")
+        else:
+            data.pop("repeat_mode", None)
+        if "end_action" in data:
+            data["end_action"] = migrate_end_action(data["end_action"])
+        return data
+
+    @property
+    def is_paused(self) -> bool:
+        return self.playback_state != VideoInitialState.PLAYING
+
+    @property
+    def is_stopped(self) -> bool:
+        return self.playback_state == VideoInitialState.STOPPED
 
     @property
     def uri_name(self) -> str:

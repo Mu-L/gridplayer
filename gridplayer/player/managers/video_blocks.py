@@ -8,7 +8,7 @@ from gridplayer.params.static import (
     AudioChannelMode,
     SeekSyncMode,
     VideoAspect,
-    VideoRepeat,
+    VideoEndAction,
     VideoTransform,
 )
 from gridplayer.player.managers.base import ManagerBase
@@ -99,6 +99,7 @@ class VideoBlocksManager(ManagerBase):
     show_overlay = pyqtSignal()
     set_drag_ui = pyqtSignal(bool)
     set_pause = pyqtSignal(bool)
+    all_stop_playback = pyqtSignal()
 
     close_all_signal = pyqtSignal()
 
@@ -117,7 +118,7 @@ class VideoBlocksManager(ManagerBase):
     all_set_loop_start = pyqtSignal()
     all_set_loop_end = pyqtSignal()
     all_reset_loop = pyqtSignal()
-    all_set_repeat_mode = pyqtSignal(VideoRepeat)
+    all_set_end_action = pyqtSignal(VideoEndAction)
 
     all_rate_increase = pyqtSignal()
     all_rate_decrease = pyqtSignal()
@@ -176,6 +177,8 @@ class VideoBlocksManager(ManagerBase):
             "all_set_auto_reload_timer": self.cmd_set_auto_reload_timer,
             "is_videos": lambda: bool(self._ctx.video_blocks),
             "is_any_videos_initialized": self.is_any_videos_initialized,
+            "is_any_videos_playable": self.is_any_videos_playable,
+            "is_any_videos_playable_not_live": self.is_any_videos_playable_not_live,
             "is_any_videos_seekable": self.is_any_videos_seekable,
             "is_any_videos_local_file": self.is_any_videos_local_file,
             "is_any_videos_live": self.is_any_videos_live,
@@ -340,6 +343,12 @@ class VideoBlocksManager(ManagerBase):
     def is_any_videos_initialized(self):
         return bool(self._ctx.video_blocks.initialized)
 
+    def is_any_videos_playable(self):
+        return any(vb.is_playable for vb in self._ctx.video_blocks)
+
+    def is_any_videos_playable_not_live(self):
+        return any(vb.is_playable and not vb.is_live for vb in self._ctx.video_blocks)
+
     def is_any_videos_seekable(self):
         return any(not vb.is_live for vb in self._ctx.video_blocks.initialized)
 
@@ -353,7 +362,7 @@ class VideoBlocksManager(ManagerBase):
         return any(vb.video_tracks for vb in self._ctx.video_blocks.initialized)
 
     def is_any_videos_local_file(self):
-        return any(vb.is_local_file for vb in self._ctx.video_blocks.initialized)
+        return any(vb.is_local_file and vb.is_playable for vb in self._ctx.video_blocks)
 
     def reload_videos(self):
         if self._videos_to_reload:
@@ -455,6 +464,7 @@ class VideoBlocksManager(ManagerBase):
             (vb.sync_paused, self.set_pause),
             (vb.destroyed, self._video_block_destroyed),
             (self.set_pause, vb.set_pause),
+            (self.all_stop_playback, vb.stop_playback),
             (self.all_seek_shift_percent, vb.seek_shift_percent),
             (self.all_seek_shift_ms, vb.seek_shift_ms),
             (self.all_seek_random, vb.seek_random),
@@ -466,7 +476,7 @@ class VideoBlocksManager(ManagerBase):
             (self.all_set_loop_start, vb.set_loop_start),
             (self.all_set_loop_end, vb.set_loop_end),
             (self.all_reset_loop, vb.reset_loop),
-            (self.all_set_repeat_mode, vb.set_repeat_mode),
+            (self.all_set_end_action, vb.set_end_action),
             (self.all_rate_increase, vb.rate_increase),
             (self.all_rate_decrease, vb.rate_decrease),
             (self.all_rate_reset, vb.rate_reset),

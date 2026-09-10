@@ -5,7 +5,7 @@ from gridplayer.params.static import (
     GridMode,
     SeekSyncMode,
     VideoAspect,
-    VideoRepeat,
+    VideoEndAction,
     VideoTransform,
 )
 from gridplayer.utils.command_helpers import AND, NOT, OR
@@ -20,6 +20,12 @@ ACTIONS = MappingProxyType(
             "icon": ("play", "pause"),
             "toggle": ("is_active_param_set_to", "is_paused", False),
             "func": ("active", "play_pause"),
+            "show_if": "is_active_playable",
+        },
+        "Stop": {
+            "title": translate("Actions", "Stop"),
+            "icon": "empty",
+            "func": ("active", "stop_playback"),
             "show_if": "is_active_initialized",
         },
         "Single Mode ON / OFF": {
@@ -271,34 +277,82 @@ ACTIONS = MappingProxyType(
             "func": ("active", "reset_loop"),
             "show_if": "is_active_seekable",
         },
-        "Repeat Single File": {
-            "title": translate("Actions", "Repeat Single File"),
+        "When Finished Loop File": {
+            "title": translate("Actions", "Loop This File"),
             "icon": "loop-single",
-            "func": ("active", "set_repeat_mode", VideoRepeat.SINGLE_FILE),
+            "func": ("active", "set_end_action", VideoEndAction.LOOP_FILE),
             "check_if": (
                 "is_active_param_set_to",
-                "repeat_mode",
-                VideoRepeat.SINGLE_FILE,
+                "end_action",
+                VideoEndAction.LOOP_FILE,
+            ),
+            "show_if": AND("is_active_playable", NOT("is_active_live")),
+        },
+        "When Finished Next": {
+            "title": translate("Actions", "Play Next File"),
+            "icon": "next-video-file",
+            "func": ("active", "set_end_action", VideoEndAction.NEXT_FILE),
+            "check_if": (
+                "is_active_param_set_to",
+                "end_action",
+                VideoEndAction.NEXT_FILE,
             ),
             "show_if": "is_active_local_file",
         },
-        "Repeat Directory": {
-            "title": translate("Actions", "Repeat Directory"),
-            "icon": "loop-dir",
-            "func": ("active", "set_repeat_mode", VideoRepeat.DIR),
-            "check_if": ("is_active_param_set_to", "repeat_mode", VideoRepeat.DIR),
+        "When Finished Previous": {
+            "title": translate("Actions", "Play Previous File"),
+            "icon": "previous-video-file",
+            "func": ("active", "set_end_action", VideoEndAction.PREVIOUS_FILE),
+            "check_if": (
+                "is_active_param_set_to",
+                "end_action",
+                VideoEndAction.PREVIOUS_FILE,
+            ),
             "show_if": "is_active_local_file",
         },
-        "Repeat Directory (Shuffle)": {
-            "title": translate("Actions", "Repeat Directory (Shuffle)"),
+        "When Finished Shuffle": {
+            "title": translate("Actions", "Random In Folder"),
             "icon": "loop-dir-shuffle",
-            "func": ("active", "set_repeat_mode", VideoRepeat.DIR_SHUFFLE),
+            "func": ("active", "set_end_action", VideoEndAction.SHUFFLE_FILE),
             "check_if": (
                 "is_active_param_set_to",
-                "repeat_mode",
-                VideoRepeat.DIR_SHUFFLE,
+                "end_action",
+                VideoEndAction.SHUFFLE_FILE,
             ),
             "show_if": "is_active_local_file",
+        },
+        "When Finished Pause": {
+            "title": translate("Actions", "Pause At Start"),
+            "icon": "pause",
+            "func": ("active", "set_end_action", VideoEndAction.PAUSE),
+            "check_if": (
+                "is_active_param_set_to",
+                "end_action",
+                VideoEndAction.PAUSE,
+            ),
+            "show_if": AND("is_active_playable", NOT("is_active_live")),
+        },
+        "When Finished Stop": {
+            "title": translate("Actions", "Stop"),
+            "icon": "empty",
+            "func": ("active", "set_end_action", VideoEndAction.STOP),
+            "check_if": (
+                "is_active_param_set_to",
+                "end_action",
+                VideoEndAction.STOP,
+            ),
+            "show_if": AND("is_active_playable", NOT("is_active_live")),
+        },
+        "When Finished Close": {
+            "title": translate("Actions", "Close"),
+            "icon": "close",
+            "func": ("active", "set_end_action", VideoEndAction.CLOSE),
+            "check_if": (
+                "is_active_param_set_to",
+                "end_action",
+                VideoEndAction.CLOSE,
+            ),
+            "show_if": AND("is_active_playable", NOT("is_active_live")),
         },
         "Faster": {
             "title": translate("Actions", "Faster"),
@@ -665,7 +719,7 @@ ACTIONS = MappingProxyType(
             "key": "F4",
             "icon": "rename",
             "func": ("active", "rename"),
-            "show_if": "is_active_initialized",
+            "show_if": "is_active_playable",
         },
         "Reload": {
             "title": translate("Actions", "Reload"),
@@ -692,18 +746,24 @@ ACTIONS = MappingProxyType(
             "key": "Space",
             "icon": "play-pause",
             "func": "all_play_pause",
-            "show_if": "is_any_videos_initialized",
+            "show_if": "is_any_videos_playable",
         },
         "Play [ALL]": {
             "title": translate("Actions", "Play"),
             "icon": "play",
             "func": "all_play",
-            "show_if": "is_any_videos_initialized",
+            "show_if": "is_any_videos_playable",
         },
         "Pause [ALL]": {
             "title": translate("Actions", "Pause"),
             "icon": "pause",
             "func": "all_pause",
+            "show_if": "is_any_videos_initialized",
+        },
+        "Stop [ALL]": {
+            "title": translate("Actions", "Stop"),
+            "icon": "empty",
+            "func": ("all", "stop_playback"),
             "show_if": "is_any_videos_initialized",
         },
         "Play Previous File [ALL]": {
@@ -929,23 +989,47 @@ ACTIONS = MappingProxyType(
             "func": ("all", "reset_loop"),
             "show_if": "is_any_videos_seekable",
         },
-        "Repeat Single File [ALL]": {
-            "title": translate("Actions", "Repeat Single File"),
+        "When Finished Loop File [ALL]": {
+            "title": translate("Actions", "Loop This File"),
             "icon": "loop-single",
-            "func": ("all", "set_repeat_mode", VideoRepeat.SINGLE_FILE),
+            "func": ("all", "set_end_action", VideoEndAction.LOOP_FILE),
+            "show_if": "is_any_videos_playable_not_live",
+        },
+        "When Finished Next [ALL]": {
+            "title": translate("Actions", "Play Next File"),
+            "icon": "next-video-file",
+            "func": ("all", "set_end_action", VideoEndAction.NEXT_FILE),
             "show_if": "is_any_videos_local_file",
         },
-        "Repeat Directory [ALL]": {
-            "title": translate("Actions", "Repeat Directory"),
-            "icon": "loop-dir",
-            "func": ("all", "set_repeat_mode", VideoRepeat.DIR),
+        "When Finished Previous [ALL]": {
+            "title": translate("Actions", "Play Previous File"),
+            "icon": "previous-video-file",
+            "func": ("all", "set_end_action", VideoEndAction.PREVIOUS_FILE),
             "show_if": "is_any_videos_local_file",
         },
-        "Repeat Directory (Shuffle) [ALL]": {
-            "title": translate("Actions", "Repeat Directory (Shuffle)"),
+        "When Finished Shuffle [ALL]": {
+            "title": translate("Actions", "Random In Folder"),
             "icon": "loop-dir-shuffle",
-            "func": ("all", "set_repeat_mode", VideoRepeat.DIR_SHUFFLE),
+            "func": ("all", "set_end_action", VideoEndAction.SHUFFLE_FILE),
             "show_if": "is_any_videos_local_file",
+        },
+        "When Finished Pause [ALL]": {
+            "title": translate("Actions", "Pause At Start"),
+            "icon": "pause",
+            "func": ("all", "set_end_action", VideoEndAction.PAUSE),
+            "show_if": "is_any_videos_playable_not_live",
+        },
+        "When Finished Stop [ALL]": {
+            "title": translate("Actions", "Stop"),
+            "icon": "empty",
+            "func": ("all", "set_end_action", VideoEndAction.STOP),
+            "show_if": "is_any_videos_playable_not_live",
+        },
+        "When Finished Close [ALL]": {
+            "title": translate("Actions", "Close"),
+            "icon": "close",
+            "func": ("all", "set_end_action", VideoEndAction.CLOSE),
+            "show_if": "is_any_videos_playable_not_live",
         },
         "Faster [ALL]": {
             "title": translate("Actions", "Faster"),

@@ -70,7 +70,9 @@ class VideoDriverManager(ManagerBase):
             self._process_manager.set_log_level_vlc(log_level)
         elif Settings().get("player/video_driver") == VideoDriver.VLC_HW_SP:
             for vb in self._ctx.video_blocks:
-                vb.video_driver.set_log_level_vlc(log_level)
+                driver = vb.video_driver
+                if driver is not None and hasattr(driver, "set_log_level_vlc"):
+                    driver.set_log_level_vlc(log_level)
 
     def set_log_level(self, log_level):
         if self._process_manager:

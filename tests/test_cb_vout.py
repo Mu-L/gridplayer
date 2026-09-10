@@ -62,6 +62,20 @@ def _make_player(aspect_mode=VideoAspect.FIT, is_audio_only=False):
     return player, media_player
 
 
+def test_cb_stopped_unexpected_non_live_errors():
+    player, _ = _make_player()
+    player.is_video_initialized = True
+    player.media_input.is_live = False
+    errors = []
+    player.notify_error = errors.append
+    player.notify_playback_status_changed = Mock()
+
+    player.cb_stopped(None)
+
+    assert errors == ["Video stopped unexpectedly"]
+    player.notify_playback_status_changed.assert_not_called()
+
+
 def test_cb_vout_defers_and_does_not_reenter_libvlc(monkeypatch):
     """cb_vout schedules the re-apply via the seam and issues NO libvlc setters."""
     monkeypatch.setattr(player_base_mod.env, "IS_MACOS", True)

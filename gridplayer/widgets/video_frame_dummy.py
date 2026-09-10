@@ -17,7 +17,8 @@ class VideoDriverDummy(VLCVideoDriver):
 
     def load_video(self, media_input: MediaInput): ...
 
-    def snapshot(self): ...
+    def snapshot(self):
+        self.snapshot_taken_emit("")
 
     def play(self): ...
 
@@ -89,7 +90,7 @@ class VideoFrameDummy(VideoFrameVLC):
 
     def play(self):
         self._fake_player_timer.start(self._ms_per_frame)
-        self.playback_status_changed.emit(True)
+        self.playback_status_changed.emit(False)
 
     def set_pause(self, is_paused):
         if is_paused:

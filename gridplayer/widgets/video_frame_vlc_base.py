@@ -67,11 +67,15 @@ class PauseSnapshot(QLabel):
     def set_snapshot_file(self, snapshot_file: str):
         # failed snapshot
         if not snapshot_file:
-            self._snapshot_pixmap = QPixmap(1, 1)
-            self._snapshot_pixmap.fill(Qt.black)
+            pixmap = QPixmap(1, 1)
+            pixmap.fill(Qt.black)
+            self.set_pixmap(pixmap)
             return
 
-        self._snapshot_pixmap = QPixmap(snapshot_file)
+        self.set_pixmap(QPixmap(snapshot_file))
+
+    def set_pixmap(self, pixmap: QPixmap | None):
+        self._snapshot_pixmap = QPixmap(pixmap) if pixmap is not None else None
 
     def adjust_view(self, size: QSize, aspect, scale: float):
         if self._snapshot_pixmap is None:
@@ -248,7 +252,7 @@ class VideoFrameVLC(QWidget, metaclass=QABC):
         if self.media.is_audio_only:
             return True
 
-        if self.is_live:
+        if self.pause_snapshot.isVisible():
             self.pause_snapshot.adjust_view(self.size(), self._aspect, self._scale)
 
     def resizeEvent(self, event) -> None:
@@ -258,11 +262,10 @@ class VideoFrameVLC(QWidget, metaclass=QABC):
         if not self.is_video_initialized:
             return
 
-        if self.is_live_video and not is_paused:
+        if not is_paused and self.pause_snapshot.isVisible():
             self.pause_snapshot.hide()
             self.pause_snapshot.reset()
-            # Live pause is stop/play, which rebuilds the vout. Re-apply crop
-            # and aspect from the widget now that playback has resumed.
+            # Live pause is stop/play, which rebuilds the vout.
             self.adjust_view()
 
         self._is_status_change_in_progress = False

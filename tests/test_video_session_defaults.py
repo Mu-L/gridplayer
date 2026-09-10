@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from gridplayer.models.playlist import Playlist
 from gridplayer.models.video import Video
 from gridplayer.params.defaults_fields import VIDEO_FIELDS
-from gridplayer.params.static import VideoCrop
+from gridplayer.params.static import VideoCrop, VideoEndAction, VideoInitialState
 from gridplayer.playlist_settings import (
     PlaylistSettings,
     overrides_from_playlist,
@@ -44,6 +44,62 @@ def test_settings_crop_falls_back_to_default_on_garbage():
         Settings().get("video_defaults/crop")
         == _default_settings["video_defaults/crop"]
     )
+
+
+def test_video_uses_initial_state_stopped():
+    PlaylistSettings().replace(
+        {"video_defaults/initial_state": VideoInitialState.STOPPED}
+    )
+
+    video = Video(uri="http://example.com/a.mp4")
+
+    assert video.playback_state is VideoInitialState.STOPPED
+    assert video.is_paused is True
+    assert video.is_stopped is True
+
+
+def test_video_legacy_stopped_bools_become_playback_state():
+    video = Video(uri="http://example.com/a.mp4", is_paused=False, is_stopped=True)
+
+    assert video.playback_state is VideoInitialState.STOPPED
+    assert video.is_stopped is True
+    assert video.is_paused is True
+
+
+def test_video_uses_initial_state_paused():
+    PlaylistSettings().replace(
+        {"video_defaults/initial_state": VideoInitialState.PAUSED}
+    )
+
+    video = Video(uri="http://example.com/a.mp4")
+
+    assert video.playback_state is VideoInitialState.PAUSED
+    assert video.is_paused is True
+    assert video.is_stopped is False
+
+
+def test_defaults_form_has_end_action_combo():
+    form = DefaultsForm(VIDEO_FIELDS)
+    combo = form._widgets["video_defaults/end_action"]
+
+    combo.setCurrentIndex(combo.findData(VideoEndAction.STOP))
+
+    assert form.values()["video_defaults/end_action"] is VideoEndAction.STOP
+
+
+def test_video_accepts_legacy_repeat_mode():
+    video = Video(uri="http://example.com/a.mp4", repeat_mode="none")
+
+    assert video.end_action is VideoEndAction.STOP
+
+
+def test_defaults_form_has_initial_state_combo():
+    form = DefaultsForm(VIDEO_FIELDS)
+    combo = form._widgets["video_defaults/initial_state"]
+
+    combo.setCurrentIndex(combo.findData(VideoInitialState.STOPPED))
+
+    assert form.values()["video_defaults/initial_state"] is VideoInitialState.STOPPED
 
 
 def test_video_uses_session_defaults():

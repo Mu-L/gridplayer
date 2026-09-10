@@ -15,7 +15,8 @@ from gridplayer.params.static import (
     SeekSyncMode,
     UnsavedChangesMode,
     VideoAspect,
-    VideoRepeat,
+    VideoEndAction,
+    VideoInitialState,
     VideoTransform,
 )
 from gridplayer.player.managers.playlist import PlaylistManager
@@ -69,7 +70,7 @@ def _video(name):
     return Video(
         id=uuid4(),
         uri=f"http://example.com/{name}.mp4",
-        repeat_mode=VideoRepeat.SINGLE_FILE,
+        end_action=VideoEndAction.LOOP_FILE,
         is_start_random=False,
         aspect_mode=VideoAspect.FIT,
         is_muted=True,
@@ -371,6 +372,8 @@ def test_playlist_dump_omits_position_and_state_by_default(mocker):
 
     assert "current_position" not in text
     assert "is_paused" not in text
+    assert "is_stopped" not in text
+    assert "playback_state" not in text
 
 
 def test_playlist_dump_keeps_position_and_state_with_overrides():
@@ -379,13 +382,93 @@ def test_playlist_dump_keeps_position_and_state_with_overrides():
     text = Playlist(videos=[video], save_position=True, save_state=False).dumps()
     assert '"current_position":125' in text
     assert '"is_paused"' not in text
+    assert "playback_state" not in text
     parsed = Playlist.parse(text)
     assert parsed.videos[0].current_position == 125
 
     text = Playlist(videos=[video], save_state=True).dumps()
-    assert '"is_paused":true' in text
+    assert '"playback_state":"paused"' in text
+    assert '"is_paused"' not in text
+    assert '"is_stopped"' not in text
     parsed = Playlist.parse(text)
     assert parsed.videos[0].is_paused is True
+    assert parsed.videos[0].is_stopped is False
+    assert parsed.videos[0].playback_state is VideoInitialState.PAUSED
+
+
+def test_playlist_dump_writes_stopped_when_save_state():
+    video = Video(
+        uri="http://example.com/a.mp4",
+        is_paused=True,
+        is_stopped=True,
+    )
+
+    text = Playlist(videos=[video], save_state=True).dumps()
+    assert '"playback_state":"stopped"' in text
+    assert '"is_paused"' not in text
+    assert '"is_stopped"' not in text
+    parsed = Playlist.parse(text)
+    assert parsed.videos[0].is_paused is True
+    assert parsed.videos[0].is_stopped is True
+    assert parsed.videos[0].playback_state is VideoInitialState.STOPPED
+
+
+def test_playlist_parse_playback_state_stopped():
+    text = (
+        "#GRIDPLAYER\n"
+        '#P:{"save_state":true}\n'
+        '#V0:{"playback_state":"stopped"}\n'
+        "http://example.com/a.mp4\n"
+    )
+    parsed = Playlist.parse(text)
+    assert parsed.videos[0].playback_state is VideoInitialState.STOPPED
+    assert parsed.videos[0].is_paused is True
+    assert parsed.videos[0].is_stopped is True
+    assert '"is_paused"' not in parsed.dumps()
+    assert '"playback_state":"stopped"' in parsed.dumps()
+
+
+def test_playlist_parse_old_paused_video_is_not_stopped():
+    text = (
+        "#GRIDPLAYER\n"
+        '#P:{"save_state":true}\n'
+        '#V0:{"is_paused":true}\n'
+        "http://example.com/a.mp4\n"
+    )
+    parsed = Playlist.parse(text)
+    assert parsed.videos[0].is_paused is True
+    assert parsed.videos[0].is_stopped is False
+
+
+def test_playlist_migrates_repeat_video_default():
+    playlist = Playlist.model_validate(
+        {"videos": [], "video_defaults": {"repeat": "none"}}
+    )
+
+    assert playlist.video_defaults.end_action is VideoEndAction.STOP
+    dumped = playlist.dumps()
+    assert '"repeat":' not in dumped
+    assert '"end_action":"stop"' in dumped
+
+
+def test_playlist_migrates_repeat_mode_on_video():
+    video = Video(uri="http://example.com/a.mp4", repeat_mode="dir")
+
+    assert video.end_action is VideoEndAction.NEXT_FILE
+    dumped = Playlist(videos=[video]).dumps()
+    assert '"repeat_mode":' not in dumped
+    assert '"end_action":"next_file"' in dumped
+
+
+def test_playlist_migrates_paused_video_default():
+    playlist = Playlist.model_validate(
+        {"videos": [], "video_defaults": {"paused": True}}
+    )
+
+    assert playlist.video_defaults.initial_state is VideoInitialState.PAUSED
+    dumped = playlist.dumps()
+    assert '"paused":' not in dumped
+    assert '"initial_state":"paused"' in dumped
 
 
 def test_load_playlist_file_accepts_empty_template(tmp_path, mocker):

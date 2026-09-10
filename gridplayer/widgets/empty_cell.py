@@ -1,27 +1,21 @@
 from PyQt5.QtCore import QEvent, QRectF, Qt
 from PyQt5.QtGui import (
-    QColor,
     QFont,
     QPainter,
     QPainterPath,
-    QPen,
 )
 from PyQt5.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from gridplayer.params.static import FONT_SIZE_BIG_INFO
 from gridplayer.utils.drop_zone import DropIndicator
+from gridplayer.widgets.cell_chrome import (
+    TEXT_ALPHA,
+    chrome_color,
+    chrome_color_on_cell,
+    dashed_frame,
+    paint_dashed_outline,
+)
 from gridplayer.widgets.video_overlay_elements import OverlayDropIndicator
-
-_CHROME_ALPHA = 90
-_TEXT_ALPHA = 170
-
-
-def _dashed_frame(widget):
-    margin = max(6.0, min(widget.width(), widget.height()) / 24)
-    rect = QRectF(widget.rect()).adjusted(margin, margin, -margin, -margin)
-    stroke = min(6, max(2.0, margin / 4))
-    radius = max(6.0, min(rect.width(), rect.height()) * 0.06)
-    return rect, stroke, radius
 
 
 class EmptyCell(QWidget):
@@ -75,7 +69,7 @@ class EmptyCell(QWidget):
     def _update_label_margins(self):
         if not self._message_label:
             return
-        _, stroke, _ = _dashed_frame(self)
+        _, stroke, _ = dashed_frame(self)
         margin = max(6.0, min(self.width(), self.height()) / 24)
         inset = stroke * 5
         pad = round(margin + inset)
@@ -86,30 +80,14 @@ class EmptyCell(QWidget):
         if event.type() == QEvent.PaletteChange:
             self._apply_colors()
 
-    def _chrome_color(self, alpha=_CHROME_ALPHA) -> QColor:
-        color = QColor(self.palette().color(self.foregroundRole()))
-        color.setAlpha(alpha)
-        return color
-
-    def _chrome_color_on_cell(self) -> QColor:
-        """Opaque color matching dashed chrome composited on this cell."""
-        fg = self.palette().color(self.foregroundRole())
-        bg = self.palette().color(self.backgroundRole())
-        t = _CHROME_ALPHA / 255
-        return QColor(
-            round(fg.red() * t + bg.red() * (1 - t)),
-            round(fg.green() * t + bg.green() * (1 - t)),
-            round(fg.blue() * t + bg.blue() * (1 - t)),
-        )
-
     def _apply_colors(self):
         self._drop_indicator.set_colors(
-            self._chrome_color_on_cell(),
+            chrome_color_on_cell(self),
             self.palette().color(self.backgroundRole()),
         )
 
         if self._message_label:
-            color = self._chrome_color(_TEXT_ALPHA)
+            color = chrome_color(self, TEXT_ALPHA)
             self._message_label.setStyleSheet(
                 f"color: rgba({color.red()}, {color.green()}, {color.blue()}, {color.alpha()});"
             )
@@ -118,18 +96,7 @@ class EmptyCell(QWidget):
         super().paintEvent(event)
 
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-
-        rect, stroke, radius = _dashed_frame(self)
-
-        pen = QPen(self._chrome_color())
-        pen.setWidthF(stroke)
-        pen.setStyle(Qt.DashLine)
-        pen.setCapStyle(Qt.RoundCap)
-        pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(rect, radius, radius)
+        paint_dashed_outline(self, painter)
 
         if self._drop_indicator.isVisible():
             return
@@ -137,6 +104,7 @@ class EmptyCell(QWidget):
         if self._message:
             return
 
+        rect, stroke, _ = dashed_frame(self)
         self._paint_plus(painter, rect, stroke)
 
     def _paint_plus(self, painter, rect, stroke):
@@ -155,4 +123,4 @@ class EmptyCell(QWidget):
         )
 
         painter.setPen(Qt.NoPen)
-        painter.fillPath(horizontal.united(vertical), self._chrome_color())
+        painter.fillPath(horizontal.united(vertical), chrome_color(self))

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from pydantic_extra_types.color import Color
 
 from gridplayer.models.grid_state import GridState
-from gridplayer.models.video import Video
+from gridplayer.models.video import Video, migrate_end_action
 from gridplayer.models.video_uri import parse_uri
 from gridplayer.params.defaults_fields import GRID_STATE_ATTR
 from gridplayer.params.static import (
@@ -18,7 +18,8 @@ from gridplayer.params.static import (
     UnsavedChangesMode,
     VideoAspect,
     VideoCrop,
-    VideoRepeat,
+    VideoEndAction,
+    VideoInitialState,
     VideoTransform,
     WindowState,
 )
@@ -37,11 +38,11 @@ class Snapshot(BaseModel):
 class PlaylistVideoDefaults(BaseModel):
     aspect: VideoAspect | None = None
     transform: VideoTransform | None = None
-    repeat: VideoRepeat | None = None
+    end_action: VideoEndAction | None = None
     audio_mode: AudioChannelMode | None = None
     random_loop: bool | None = None
     muted: bool | None = None
-    paused: bool | None = None
+    initial_state: VideoInitialState | None = None
     rate: float | None = None
     scale: float | None = None
     volume: float | None = None
@@ -49,6 +50,24 @@ class PlaylistVideoDefaults(BaseModel):
     crop: VideoCrop | None = None
     stream_quality: str | None = None
     auto_reload_timer: int | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_paused_default(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        paused = data.pop("paused", None)
+        if paused is not None and "initial_state" not in data:
+            data["initial_state"] = (
+                VideoInitialState.PAUSED if paused else VideoInitialState.PLAYING
+            )
+        if "end_action" not in data and "repeat" in data:
+            data["end_action"] = data.pop("repeat")
+        else:
+            data.pop("repeat", None)
+        if "end_action" in data:
+            data["end_action"] = migrate_end_action(data["end_action"])
+        return data
 
 
 class Playlist(BaseModel):
@@ -244,6 +263,6 @@ def _video_data(video: Video, playlist: Playlist) -> dict:
     if not _effective_flag(playlist, "save_position", "playlist/save_position"):
         data.pop("current_position", None)
     if not _effective_flag(playlist, "save_state", "playlist/save_state"):
-        data.pop("is_paused", None)
+        data.pop("playback_state", None)
 
     return data

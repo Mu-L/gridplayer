@@ -64,6 +64,9 @@ class OverlayBlock(QWidget):
 
         self._is_chrome_visible = True
         self._is_active = False
+        self._is_stopped = False
+        self._last_position = (0, 0)
+        self._volume_button_wanted = True
 
         self._set_opacity(0.5)
 
@@ -169,14 +172,12 @@ class OverlayBlock(QWidget):
             QGuiApplication.sendEvent(self.parent(), QEvent(OVERLAY_ACTIVITY_EVENT))
 
     def resizeEvent(self, event):
-        too_narrow_to_fit = 250
-        is_wide = event.size().width() > too_narrow_to_fit
-
-        self.label_progress.setVisible(is_wide or not self.progress_bar.isEnabled())
+        self._sync_progress_label()
 
     @pyqtSlot(int, int)
     def set_position(self, position, length):
         position = max(0, position)
+        self._last_position = (position, length)
 
         if length <= 0:
             position_txt = get_time_txt(position // 1000)
@@ -189,7 +190,8 @@ class OverlayBlock(QWidget):
             self.progress_bar_placeholder.show()
 
             self.label_progress.text = f"{position_txt}"
-            self.label_progress.show()
+            self._apply_stopped_chrome()
+            self._sync_progress_label()
 
             return
 
@@ -205,6 +207,8 @@ class OverlayBlock(QWidget):
         self.floating_progress.length = length
         self.label_progress.text = f"{position_txt} / {length_txt}"
         self.progress_bar.position = position_percent
+        self._apply_stopped_chrome()
+        self._sync_progress_label()
 
     @pyqtSlot(float)
     def set_loop_start(self, position):
@@ -238,10 +242,24 @@ class OverlayBlock(QWidget):
         self.play_pause_button.is_off = not is_paused
 
     @pyqtSlot(bool)
+    def set_is_stopped(self, is_stopped):
+        if self._is_stopped == is_stopped:
+            self._apply_stopped_chrome()
+            return
+
+        self._is_stopped = is_stopped
+        self._apply_stopped_chrome()
+        if not is_stopped:
+            position, length = self._last_position
+            if length > 0:
+                self.set_position(position, length)
+            else:
+                self._sync_progress_label()
+
+    @pyqtSlot(bool)
     def set_is_muted(self, is_muted):
         self.volume_button.is_off = is_muted
-
-        self.volume_bar.setHidden(self.volume_button.is_off)
+        self._sync_volume_chrome()
 
     @pyqtSlot(float)
     def set_volume_position(self, position):
@@ -279,11 +297,48 @@ class OverlayBlock(QWidget):
         if not visible:
             self.floating_progress.hide()
         self.border_widget.setVisible(visible and self._is_active)
+        self._apply_stopped_chrome()
         self.update()
+
+    def _apply_stopped_chrome(self):
+        if not getattr(self, "is_opaque", False):
+            self._set_opacity(0.5)
+        if self._is_stopped:
+            self.progress_bar.hide()
+            self.progress_bar_placeholder.show()
+            self.label_progress.hide()
+            self.floating_progress.hide()
+            self.play_pause_button.show()
+            self.volume_button.hide()
+            self.volume_bar.hide()
+            return
+
+        self.play_pause_button.show()
+        self._sync_volume_chrome()
+        self._sync_progress_label()
+
+    def _sync_progress_label(self):
+        if self._is_stopped:
+            self.label_progress.hide()
+            return
+        too_narrow_to_fit = 250
+        is_wide = self.width() > too_narrow_to_fit
+        self.label_progress.setVisible(is_wide or not self.progress_bar.isEnabled())
 
     @pyqtSlot(bool)
     def set_volume_button_visible(self, is_visible):
-        self.volume_button.setVisible(is_visible)
+        self._volume_button_wanted = is_visible
+        self._sync_volume_chrome()
+
+    def _sync_volume_chrome(self):
+        if self._is_stopped:
+            self.volume_button.hide()
+            self.volume_bar.hide()
+            return
+
+        self.volume_button.setVisible(self._volume_button_wanted)
+        show_bar = self._volume_button_wanted and not self.volume_button.is_off
+        self.volume_bar.setVisible(show_bar)
 
     def set_drop_indicator(self, indicator: DropIndicator):
         self.drop_indicator.set_indicator(indicator)
@@ -329,6 +384,10 @@ class OverlayBlockFloating(OverlayBlock):
 
     def set_is_chrome_visible(self, visible: bool):
         super().set_is_chrome_visible(visible)
+        self.refresh_opaque_mask()
+
+    def set_is_stopped(self, is_stopped):
+        super().set_is_stopped(is_stopped)
         self.refresh_opaque_mask()
 
     def set_drop_indicator(self, indicator: DropIndicator):

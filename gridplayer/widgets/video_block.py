@@ -27,7 +27,8 @@ from gridplayer.params.static import (
     VIDEO_END_LOOP_MARGIN_MS,
     VideoAspect,
     VideoCrop,
-    VideoRepeat,
+    VideoEndAction,
+    VideoInitialState,
     VideoTransform,
 )
 from gridplayer.settings import Settings
@@ -38,6 +39,7 @@ from gridplayer.utils.qt import qt_connect, translate
 from gridplayer.utils.url_resolve.static import ResolvedVideo
 from gridplayer.utils.url_resolve.url_resolve import VideoURLResolver
 from gridplayer.vlc_player.static import DISABLED_TRACK, NO_TRACK, MediaInput
+from gridplayer.widgets.cell_chrome import paint_idle_disc, paint_solid_outline
 from gridplayer.widgets.video_frame_vlc_base import VideoFrameVLC
 from gridplayer.widgets.video_overlay import (
     OverlayBlock,
@@ -146,6 +148,7 @@ class VideoBlock(QWidget):
     loop_start_change = pyqtSignal(float)
     loop_end_change = pyqtSignal(float)
     is_paused_change = pyqtSignal(bool)
+    is_stopped_change = pyqtSignal(bool)
     is_muted_change = pyqtSignal(bool)
     info_change = pyqtSignal(str)
     is_in_progress_change = pyqtSignal()
@@ -169,6 +172,7 @@ class VideoBlock(QWidget):
         self._is_error = False
         self._is_active = False
         self._is_closing = False
+        self._drop_indicator = DropIndicator.NONE
 
         self._title = None
         self._color = None
@@ -192,7 +196,7 @@ class VideoBlock(QWidget):
         self._reload_timer.timeout.connect(self.reload)
 
         self.url_resolver = self.init_url_resolver()
-        self.video_driver = self.init_video_driver()
+        self.video_driver: VideoFrameVLC | None = None
 
         self.overlay = self.init_overlay()
 
@@ -200,6 +204,12 @@ class VideoBlock(QWidget):
 
         self.video_status.show()
         self.overlay.hide()
+
+    def _driver_is_opengl(self) -> bool:
+        cls = self.video_driver_cls
+        if isinstance(cls, partial):
+            cls = cls.func
+        return bool(getattr(cls, "is_opengl", False))
 
     def init_video_driver(self) -> VideoFrameVLC:
         vlc_options = get_vlc_options(self.video_params)
@@ -219,20 +229,40 @@ class VideoBlock(QWidget):
 
         return video_driver
 
-    def reset_video_driver(self):
+    def _ensure_video_driver(self) -> VideoFrameVLC:
+        if self.video_driver is not None:
+            return self.video_driver
+
+        self.video_driver = self.init_video_driver()
+        overlay_index = self.layout_main.indexOf(self.overlay)
+        if overlay_index < 0:
+            self.layout_main.addWidget(self.video_driver)
+        else:
+            self.layout_main.insertWidget(overlay_index, self.video_driver)
+        self.video_driver.hide()
+        return self.video_driver
+
+    def _destroy_video_driver(self):
+        self._is_state_change_in_progress = False
+        self._in_progress_timer.stop()
+
+        if self.video_driver is None:
+            return
+
+        self.load_video.disconnect()
         self.video_driver.video_ready.disconnect()
         self.video_driver.time_changed.disconnect()
+        self.video_driver.playback_status_changed.disconnect()
         self.video_driver.error.disconnect()
         self.video_driver.crash.disconnect()
-        self.load_video.disconnect()
+        self.video_driver.update_status.disconnect()
 
         old_driver = self.video_driver
-
-        self.layout_main.takeAt(1).widget()
-        self.video_driver = self.init_video_driver()
-        self.layout_main.insertWidget(1, self.video_driver)
-
+        self.video_driver = None
+        self.layout_main.removeWidget(old_driver)
+        old_driver.hide()
         old_driver.cleanup()
+        old_driver.deleteLater()
 
     def init_url_resolver(self):
         url_resolver = VideoURLResolver(parent=self)
@@ -254,11 +284,11 @@ class VideoBlock(QWidget):
         self._is_error = False
         self.set_status("processing")
 
-        self.reset_video_driver()
+        self._destroy_video_driver()
         self.reset_url_resolver()
 
     def init_overlay(self):
-        if self.video_driver.is_opengl:
+        if self._driver_is_opengl():
             if Settings().get("internal/fake_overlay_invisibility"):
                 overlay = OverlayFakeInvisible(self)
             else:
@@ -280,6 +310,7 @@ class VideoBlock(QWidget):
             (self.loop_start_change, overlay.set_loop_start),
             (self.loop_end_change, overlay.set_loop_end),
             (self.is_paused_change, overlay.set_is_paused),
+            (self.is_stopped_change, overlay.set_is_stopped),
             (self.is_in_progress_change, overlay.set_is_in_progress),
             (self.is_muted_change, overlay.set_is_muted),
             (self.info_change, overlay.set_info_label),
@@ -291,8 +322,10 @@ class VideoBlock(QWidget):
 
     def ui_setup(self):
         self.setMouseTracking(True)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setAutoFillBackground(True)
 
-        if self.video_driver.is_opengl:
+        if self._driver_is_opengl():
             self.layout_main = QStackedLayoutFloating(self)
         else:
             self.layout_main = QStackedLayout(self)
@@ -308,7 +341,6 @@ class VideoBlock(QWidget):
         self.video_status.setWindowFlags(Qt.WindowTransparentForInput)
 
         self.layout_main.addWidget(self.video_status)
-        self.layout_main.addWidget(self.video_driver)
         self.layout_main.addWidget(self.overlay)
 
         if type(self.overlay) is OverlayBlock:
@@ -325,7 +357,7 @@ class VideoBlock(QWidget):
         self.url_resolver.cleanup()
 
         self._log.debug(f"{self.id}: cleaning up driver ")
-        self.video_driver.cleanup()
+        self._destroy_video_driver()
 
         self._log.debug(f"{self.id}: cleaning up done")
 
@@ -339,17 +371,20 @@ class VideoBlock(QWidget):
 
     def error(self):
         self._is_error = True
+        self._is_state_change_in_progress = False
         self.set_status("error")
         self.cleanup()
 
     def network_error(self):
         self._is_error = True
+        self._is_state_change_in_progress = False
         self.set_status("network-error")
         self.cleanup()
 
     def set_status(self, status):
         self.overlay.hide()
-        self.video_driver.hide()
+        if self.video_driver is not None:
+            self.video_driver.hide()
 
         self.video_status.icon = status
         self.video_status.show()
@@ -412,6 +447,13 @@ class VideoBlock(QWidget):
 
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event) -> None:
+        # Overlay hide-on-timeout hides the overlay widget, so hover activity
+        # never comes from overlay children. Restart the overlay from the cell
+        # itself — including stopped tiles with no VLC widget.
+        self.show_overlay()
+        event.ignore()
+
     def mouseReleaseEvent(self, event) -> None:
         if self._ctx.is_disable_mouse_click_events:
             event.ignore()
@@ -442,7 +484,22 @@ class VideoBlock(QWidget):
         return actions_manager.handle_mouse_event(event)
 
     def hideEvent(self, event):
-        self.hide_overlay()
+        # OverlayBlockFloating is a Qt.Tool window, so hiding this cell does
+        # not hide it. Always unmap it here — hide_overlay() is chrome-timeout
+        # policy and is a no-op when overlays stay visible.
+        self.overlay_hide_timer.stop()
+        self.overlay.hide()
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        self._paint_stopped_chrome()
+
+    def _paint_stopped_chrome(self):
+        if not self.is_stopped:
+            return
+        paint_solid_outline(self)
+        if self._drop_indicator == DropIndicator.NONE:
+            paint_idle_disc(self)
 
     def showEvent(self, event):
         if not self._ctx.is_overlay_hide_on_timeout:
@@ -568,10 +625,14 @@ class VideoBlock(QWidget):
 
     @property
     def video_tracks(self):
+        if self.video_driver is None or not self.is_video_initialized:
+            return {}
         return self.video_driver.video_tracks
 
     @property
     def audio_tracks(self):
+        if self.video_driver is None or not self.is_video_initialized:
+            return {}
         return self.video_driver.audio_tracks
 
     @only_initialized
@@ -655,13 +716,18 @@ class VideoBlock(QWidget):
     @property
     def loop_end(self):
         if self.video_params.loop_end is None:
+            length = 0
+            if self.video_driver is not None:
+                length = self.video_driver.length
             # Loop end margin before actual end for seamless loop
-            return self.video_driver.length - VIDEO_END_LOOP_MARGIN_MS
+            return max(length - VIDEO_END_LOOP_MARGIN_MS, 0)
 
         return self.video_params.loop_end
 
     def set_drop_indicator(self, indicator: DropIndicator):
+        self._drop_indicator = indicator
         self.overlay.set_drop_indicator(indicator)
+        self.update()
         if indicator != DropIndicator.NONE:
             self.overlay.show()
             self.overlay_hide_timer.stop()
@@ -674,20 +740,44 @@ class VideoBlock(QWidget):
 
     def set_drag_ui(self, is_drag_ui: bool):
         self.overlay.set_is_chrome_visible(not is_drag_ui)
+        self.update()
         if is_drag_ui:
             self.overlay_hide_timer.stop()
             return
 
-        self.overlay.set_drop_indicator(DropIndicator.NONE)
-        if self._ctx.is_disable_overlay or self._ctx.is_overlay_hide_on_timeout:
+        self.set_drop_indicator(DropIndicator.NONE)
+        if self._ctx.is_disable_overlay:
+            self.overlay_hide_timer.stop()
+            self.overlay.hide()
+            return
+        if self._ctx.is_overlay_hide_on_timeout:
             self.overlay_hide_timer.stop()
             self.overlay.hide()
             return
         self.show_overlay()
 
-    @only_initialized
+    @property
+    def is_stopped(self) -> bool:
+        return bool(self.video_params and self.video_params.is_stopped)
+
+    @property
+    def is_playable(self) -> bool:
+        return self.is_video_initialized or self.is_stopped
+
+    @property
+    def is_loading(self) -> bool:
+        return (
+            not self.is_video_initialized and not self.is_stopped and not self._is_error
+        )
+
     def show_overlay(self):
         if self._ctx.is_drag_ui or self._ctx.is_disable_overlay:
+            return
+        if self.is_loading or self._is_error:
+            return
+        # Floating overlays are independent windows; do not remap them while
+        # this cell is hidden (single-mode background, minimized, etc.).
+        if not self.isVisible():
             return
 
         self.overlay.show()
@@ -715,6 +805,9 @@ class VideoBlock(QWidget):
         if self.is_live:
             return
 
+        if self.is_stopped:
+            return
+
         # 100ms headspace for slow callbacks
         if self.time < self.loop_start - 100:
             self.seek(self.loop_start)
@@ -726,21 +819,72 @@ class VideoBlock(QWidget):
         self._is_state_change_in_progress = False
         self._in_progress_timer.stop()
 
-        self.video_params.is_paused = is_paused
-        self.is_paused_change.emit(self.video_params.is_paused)
+        self._set_playback_state(
+            VideoInitialState.PAUSED if is_paused else VideoInitialState.PLAYING
+        )
 
     def loop_end_action(self):
-        is_single_file = self.video_params.repeat_mode == VideoRepeat.SINGLE_FILE
+        # A loop start without an end is still a segment: start → EOF.
+        if (
+            self.video_params.loop_end is not None
+            or self.video_params.loop_start is not None
+        ):
+            self._loop_to_start()
+            return
 
-        if self.video_params.loop_end is not None or is_single_file:
-            if self.video_params.is_start_random:
-                self.seek_random()
-            else:
-                self.seek(self.loop_start)
-        elif self.video_params.repeat_mode == VideoRepeat.DIR:
+        end_action = self.video_params.end_action
+        if end_action == VideoEndAction.LOOP_FILE:
+            self._loop_to_start()
+        elif end_action == VideoEndAction.NEXT_FILE:
             self.next_video()
-        elif self.video_params.repeat_mode == VideoRepeat.DIR_SHUFFLE:
+        elif end_action == VideoEndAction.PREVIOUS_FILE:
+            self.previous_video()
+        elif end_action == VideoEndAction.SHUFFLE_FILE:
             self.shuffle_video()
+        elif end_action == VideoEndAction.PAUSE:
+            self._pause_at_start()
+        elif end_action == VideoEndAction.STOP:
+            self.stop_playback()
+        elif end_action == VideoEndAction.CLOSE:
+            QTimer.singleShot(0, self.close)
+
+    def _loop_to_start(self):
+        if self.video_params.is_start_random:
+            self.seek_random()
+        else:
+            self.seek(self.loop_start)
+
+    def _pause_at_start(self):
+        self.seek(self.loop_start)
+        self.set_pause(True)
+
+    def stop_playback(self):
+        if self.video_params is not None:
+            self.video_params.current_position = 0
+            self.video_params.loop_start = None
+            self.video_params.loop_end = None
+            self.loop_start_change.emit(0)
+            self.loop_end_change.emit(100.0)
+
+        self._set_playback_state(VideoInitialState.STOPPED)
+        self._destroy_video_driver()
+        self.video_status.hide()
+        self.show_overlay()
+
+    def _set_playback_state(self, state: VideoInitialState):
+        if self.video_params is None:
+            return
+        if self.video_params.playback_state == state:
+            if state is VideoInitialState.STOPPED:
+                self.is_stopped_change.emit(True)
+                self.show_overlay()
+            return
+
+        self.video_params.playback_state = state
+        self.is_paused_change.emit(self.video_params.is_paused)
+        self.is_stopped_change.emit(self.is_stopped)
+        self.update()
+        self.show_overlay()
 
     def apply_snapshot(self, snapshot: Video):
         if snapshot.uri != self.video_params.uri:
@@ -748,6 +892,17 @@ class VideoBlock(QWidget):
 
         self.title = snapshot.title or self._default_title
         self.color = snapshot.color.as_hex()
+
+        if snapshot.is_stopped:
+            self.video_params = snapshot.model_copy()
+            self._destroy_video_driver()
+            self._present_stopped()
+            return
+
+        if not self.is_video_initialized:
+            self.video_params = snapshot.model_copy()
+            self._start_load()
+            return
 
         self.set_video_track(snapshot.video_track_id)
         self.set_audio_track(snapshot.audio_track_id)
@@ -783,6 +938,34 @@ class VideoBlock(QWidget):
         if not is_first_video or is_options_changed:
             self.reset()
 
+        if self.video_params.is_stopped and not self.is_video_initialized:
+            self._present_stopped()
+            return
+
+        self._start_load()
+
+    def _present_stopped(self):
+        if self._default_title is None:
+            self._default_title = self.video_params.uri_name
+
+        if self.title is None:
+            if self.video_params.title is None:
+                self.title = self._default_title
+            else:
+                self.title = self.video_params.title
+
+        self.color = self.video_params.color.as_hex()
+        self.is_audio_present_change.emit(False)
+        self.is_paused_change.emit(True)
+        self.is_stopped_change.emit(True)
+        self.video_status.hide()
+        self.update()
+        self.show_overlay()
+
+    def _start_load(self):
+        self.overlay_hide_timer.stop()
+        self.overlay.hide()
+        self._ensure_video_driver()
         if self.video_params.is_http_url:
             self.url_resolver.resolve(self.video_params.uri)
         else:
@@ -795,6 +978,16 @@ class VideoBlock(QWidget):
                     video=self.video_params,
                 )
             )
+
+    def _load_and_play(self):
+        if self._is_error or self._is_state_change_in_progress:
+            return
+
+        self._is_state_change_in_progress = True
+        self._in_progress_timer.start()
+        self._set_playback_state(VideoInitialState.PLAYING)
+        self.set_status("processing")
+        self._start_load()
 
     def set_video_url(self, video: ResolvedVideo):
         self._default_title = video.title
@@ -868,6 +1061,9 @@ class VideoBlock(QWidget):
         self.is_audio_present_change.emit(bool(self.audio_tracks))
 
         self.video_status.hide()
+        self.video_driver.show()
+        self.is_stopped_change.emit(self.is_stopped)
+        self.time_change.emit(self.time, self.video_driver.length)
         self.show_overlay()
 
         self.video_driver.adjust_view()
@@ -928,8 +1124,8 @@ class VideoBlock(QWidget):
         self.set_loop_end_time(None)
 
     @only_seekable
-    def set_repeat_mode(self, repeat_mode: VideoRepeat):
-        self.video_params.repeat_mode = repeat_mode
+    def set_end_action(self, end_action: VideoEndAction):
+        self.video_params.end_action = end_action
 
     @only_initialized
     @only_seekable
@@ -1113,6 +1309,11 @@ class VideoBlock(QWidget):
         if self._is_state_change_in_progress:
             return
 
+        if not self.is_video_initialized:
+            if not paused:
+                self._load_and_play()
+            return
+
         if self.video_params.is_paused == paused:
             return
 
@@ -1161,22 +1362,18 @@ class VideoBlock(QWidget):
     def play_pause(self):
         self.set_pause(not self.video_params.is_paused)
 
-    @only_initialized
     @only_local_file
     def previous_video(self):
         self.switch_video(previous_video_file(self.video_params.uri))
 
-    @only_initialized
     @only_local_file
     def next_video(self):
         self.switch_video(next_video_file(self.video_params.uri))
 
-    @only_initialized
     @only_local_file
     def shuffle_video(self):
         self.switch_video(next_video_file(self.video_params.uri, is_shuffle=True))
 
-    @only_initialized
     @only_local_file
     def switch_video(self, new_video: Path):
         # If single file in the dir and was removed, highly unlikely but still
@@ -1185,13 +1382,16 @@ class VideoBlock(QWidget):
             return
 
         if new_video == self.video_params.uri:
-            self.seek(self.loop_start)
+            if self.is_video_initialized:
+                self.seek(self.loop_start)
+                return
+            self._load_and_play()
             return
 
         self.reset_loop()
         self.video_params.current_position = 0
         self.video_params.uri = new_video
-        self.video_params.is_paused = False
+        self.video_params.playback_state = VideoInitialState.PLAYING
         self._title = None
         self._default_title = None
 

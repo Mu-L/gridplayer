@@ -64,16 +64,13 @@ class SingleModeManager(ManagerBase):
         for vb in self._ctx.video_blocks:
             if vb == self._ctx.active_block:
                 continue
-            self._pre_sm_states[vb.id] = vb.video_params.is_paused
-            vb.set_pause(True)
+            self._pause_playing(vb)
 
     def _restore_hidden_videos(self):
         for vb in self._ctx.video_blocks:
             if vb == self._ctx.active_block:
                 continue
-            pre_sm_state = self._pre_sm_states.pop(vb.id, None)
-            if pre_sm_state is not None:
-                vb.set_pause(pre_sm_state)
+            self._restore_playing(vb)
 
     def toggle_single_video(self):
         if self._ctx.is_single_mode:
@@ -101,10 +98,7 @@ class SingleModeManager(ManagerBase):
             if vb == self._ctx.active_block:
                 continue
 
-            if self._ctx.is_pause_background_videos:
-                self._pre_sm_states[vb.id] = vb.video_params.is_paused
-                vb.set_pause(True)
-
+            self._pause_playing(vb)
             vb.hide()
 
         self.mode_changed.emit()
@@ -116,10 +110,7 @@ class SingleModeManager(ManagerBase):
             if vb == self._ctx.active_block:
                 continue
 
-            pre_sm_state = self._pre_sm_states.pop(vb.id, None)
-            if pre_sm_state is not None:
-                vb.set_pause(pre_sm_state)
-
+            self._restore_playing(vb)
             vb.show()
 
         self.mode_changed.emit()
@@ -135,15 +126,10 @@ class SingleModeManager(ManagerBase):
         if next_sv is current_sv:
             return
 
-        if self._ctx.is_pause_background_videos:
-            self._pre_sm_states[current_sv.id] = current_sv.video_params.is_paused
-            current_sv.set_pause(True)
+        self._pause_playing(current_sv)
         current_sv.hide()
 
-        pre_sm_state = self._pre_sm_states.pop(next_sv.id, None)
-        if pre_sm_state is not None:
-            next_sv.set_pause(pre_sm_state)
-
+        self._restore_playing(next_sv)
         next_sv.show()
 
     def _find_next_single_video(self, current_sv, is_before):
@@ -156,3 +142,16 @@ class SingleModeManager(ManagerBase):
         if is_before:
             return blocks[idx - 1]
         return blocks[(idx + 1) % len(blocks)]
+
+    def _pause_playing(self, vb):
+        if not self._ctx.is_pause_background_videos:
+            return
+        if vb.video_params.is_paused:
+            return
+        self._pre_sm_states[vb.id] = False
+        vb.set_pause(True)
+
+    def _restore_playing(self, vb):
+        pre_sm_state = self._pre_sm_states.pop(vb.id, None)
+        if pre_sm_state is not None:
+            vb.set_pause(pre_sm_state)
