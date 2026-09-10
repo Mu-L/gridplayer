@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
+- Rename Repeat to When finished: Loop this file, Next/Previous/Random in folder, Pause at start, Stop, Close ([848487b](https://github.com/vzhd1701/gridplayer/commit/848487b7d6d552229a4b503fdf5cbdac6995e373))
+- Rename video default "Paused" to "Initial state" with Playing, Paused, and Stopped ([848487b](https://github.com/vzhd1701/gridplayer/commit/848487b7d6d552229a4b503fdf5cbdac6995e373))
 - Add ask, discard, auto save options replacing "unsaved changes" flag ([d7857cf](https://github.com/vzhd1701/gridplayer/commit/d7857cf0d3463fb6f301b984b35b7153a160b5a9))
 - Move pause-on-single-mode, pause-when-minimized, overlay border, and overlay hide timeout to per-playlist settings ([be0cd5c](https://github.com/vzhd1701/gridplayer/commit/be0cd5c2274b052f10b96b40f676dd2a7d24efc0))
 - Allow user to change empty playlist settings ([19dad78](https://github.com/vzhd1701/gridplayer/commit/19dad78ad52571e5dfb9642b13de09b8e8a5f865))
@@ -17,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
+- Add option to set custom portable user data dir via GP_USER_DATA_DIR env variable or --user-data-dir command line argument ([4b9d525](https://github.com/vzhd1701/gridplayer/commit/4b9d5253f9367d642cf641b5c038b660cee5b497))
+- Add stopped video state ([848487b](https://github.com/vzhd1701/gridplayer/commit/848487b7d6d552229a4b503fdf5cbdac6995e373))
 - Add "set crop" dialog ([6178829](https://github.com/vzhd1701/gridplayer/commit/617882919a12cdc630e517a3fc45d929520597b4))
 - Allow setting Video defaults for rate, scale, volume, color and crop ([177599c](https://github.com/vzhd1701/gridplayer/commit/177599ccdd608978123ed47cab7a649032bed35d))
 - Add explicit per-playlist settings with global defaults ([fb80dfa](https://github.com/vzhd1701/gridplayer/commit/fb80dfac99df633024bef6738c2cf59c4aed9671))
