@@ -22,6 +22,6 @@ done
 # strip comments
 sed -i 's/^#.*$//g' "$APP_BASE_DIR/dialogs"/*_ui.py
 
-dos2unix "$APP_BASE_DIR/dialogs"/*_ui.py
+sed -i 's/\r$//' "$APP_BASE_DIR/dialogs"/*_ui.py
 uv run --frozen ruff format "$APP_BASE_DIR/dialogs"/*_ui.py
 uv run --frozen ruff check --fix "$APP_BASE_DIR/dialogs"/*_ui.py

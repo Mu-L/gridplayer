@@ -1,14 +1,14 @@
 const version_updater_regex = {
-  readVersion: function (contents) {
-    version_m = contents.match(this.regex);
-    if (!version_m)
-      throw new Error("Cannot parse version!");
-    return version_m[1];
-  },
-  writeVersion: function (contents, version) {
-    new_version = this.regex_repl.replace("$1", version);
-    return contents.replace(this.regex, new_version);
-  }
+    readVersion: function (contents) {
+        version_m = contents.match(this.regex);
+        if (!version_m)
+            throw new Error("Cannot parse version!");
+        return version_m[1];
+    },
+    writeVersion: function (contents, version) {
+        new_version = this.regex_repl.replace("$1", version);
+        return contents.replace(this.regex, new_version);
+    }
 }
 
 let version_updater_pyproject = {...version_updater_regex};
@@ -29,46 +29,45 @@ version_updater_readme.regex_repl = "$1";
 version_file = "gridplayer/version.py"
 
 let packageFiles = [
-  {
-    filename: "pyproject.toml",
-    updater: version_updater_pyproject,
-  }
+    {
+        filename: "pyproject.toml",
+        updater: version_updater_pyproject,
+    }
 ]
 
 let bumpFiles = packageFiles.concat([
-  {
-    filename: version_file,
-    updater: version_updater_python,
-  },
-  {
-    filename: "README.md",
-    updater: version_updater_readme,
-  }
+    {
+        filename: version_file,
+        updater: version_updater_python,
+    },
+    {
+        filename: "README.md",
+        updater: version_updater_readme,
+    }
 ])
 
 const postbumpCommands = [
-  "uv lock",
-  // Read the version that was just written to the file
-  `NEW_VERSION=$(uv run --frozen python -c 'from gridplayer.version import __version__; print(__version__)')`,
-  'uv run --frozen keepachangelog release "$NEW_VERSION"',
-  "uv run --frozen rumdl fmt CHANGELOG.md",
-  "dos2unix CHANGELOG.md",
-  "git add CHANGELOG.md uv.lock",
+    "uv lock",
+    // Read the version that was just written to the file
+    `NEW_VERSION=$(uv run --frozen python -c 'from gridplayer.version import __version__; print(__version__)')`,
+    'uv run --frozen keepachangelog release "$NEW_VERSION"',
+    "uv run --frozen rumdl fmt CHANGELOG.md",
+    "git add CHANGELOG.md uv.lock",
 ].join(" && ");
 
 const postbumpScript = `bash -c ${JSON.stringify(postbumpCommands)}`;
 
 
 module.exports = {
-  header: "",
-  commitAll: true,
-  sign: true,
-  packageFiles: packageFiles,
-  bumpFiles: bumpFiles,
-  skip: {
-    changelog: true
-  },
-  scripts: {
-    postbump: postbumpScript
-  }
+    header: "",
+    commitAll: true,
+    sign: true,
+    packageFiles: packageFiles,
+    bumpFiles: bumpFiles,
+    skip: {
+        changelog: true
+    },
+    scripts: {
+        postbump: postbumpScript
+    }
 }
