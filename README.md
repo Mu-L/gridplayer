@@ -110,6 +110,56 @@ uv tool install git+https://github.com/vzhd1701/gridplayer.git
 
 The same notes about the Python version and external packages from above apply here.
 
+## Command line options
+
+```shell
+gridplayer [options] [FILE|URL ...]
+```
+
+Any arguments that are not options are treated as media files, `.gpls` playlists, or streaming URLs
+(`https://`, `rtsp://`, ...) to open on startup. Unrecognized options are rejected with an error; use `--` to open
+dash-prefixed filenames.
+
+| Option                | Description                                                                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `--user-data-dir PATH` | Store settings and log files in `PATH` instead of the default location. Relative paths are resolved against the current working directory. |
+| `--version`           | Show the application version and exit.                                                                                 |
+| `--help`              | Show the available options and exit.                                                                                   |
+
+### User data directory
+
+By default, settings and logs are stored in the system application data directory (see below). On the Windows portable
+build, if a `portable_data` folder exists next to the executable, it is used automatically.
+
+You can point GridPlayer at any directory for its data:
+
+```shell
+# via command line option
+gridplayer --user-data-dir ./my_data
+
+# via environment variable
+export GP_USER_DATA_DIR=/path/to/my_data
+gridplayer
+```
+
+The command line option takes precedence over the environment variable. Setting either one on all platforms and
+installation types stores data in the given directory instead of the standard system location.
+
+### Default data directory locations
+
+Without a custom user data directory, settings (`settings.ini`) and log (`gridplayer.log`) files are stored in the
+standard application data location:
+
+| Platform | Location                                              |
+| -------- | ----------------------------------------------------- |
+| Windows  | `C:\Users\<USER>\AppData\Roaming\vzhd1701\GridPlayer` |
+| Linux    | `~/.local/share/vzhd1701/GridPlayer`                  |
+| macOS    | `~/Library/Application Support/vzhd1701/GridPlayer`   |
+
+On Linux, `XDG_DATA_HOME` is respected instead of `~/.local/share` when set. Sandboxed packages store the directory
+inside their own sandbox: `~/.var/app/com.vzhd1701.gridplayer/data/vzhd1701/GridPlayer` for Flatpak, and
+`~/snap/gridplayer/current/vzhd1701/GridPlayer` for Snap.
+
 ## Video Decoder settings
 
 GridPlayer supports two video output modes:

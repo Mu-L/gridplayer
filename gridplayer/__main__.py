@@ -6,6 +6,7 @@ import sys
 from multiprocessing import freeze_support
 
 from gridplayer.main.init_app_env import init_app_env
+from gridplayer.main.init_cli import init_cli_args
 from gridplayer.main.init_log import init_log
 from gridplayer.main.run import run_app
 from gridplayer.params import env
@@ -17,6 +18,8 @@ from gridplayer.utils.single_instance import is_delegated_to_primary
 
 def main():
     freeze_support()
+
+    init_cli_args()
 
     init_app_env()
 
