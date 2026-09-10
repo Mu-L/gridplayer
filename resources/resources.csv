@@ -53,67 +53,67 @@ icon-symbolic,icons/basic/129-more.svg,playlist-settings
 icon-symbolic,icons/basic/111-layers.svg,snapshots
 icon-symbolic,icons/basic/227-low volume.svg,audio
 icon-symbolic,icons/basic/225-mute.svg,volume-mute
-icon-symbolic,icons/custom/001-minimize window.svg,minimize
-icon-symbolic,icons/custom/002-close all.svg,close-playlist
-icon-symbolic,icons/custom/003-aspect fit.svg,aspect-fit
-icon-symbolic,icons/custom/004-aspect stretch.svg,aspect-stretch
-icon-symbolic,icons/custom/005-aspect none.svg,aspect-none
-icon-symbolic,icons/custom/006-aspect.svg,aspect
-icon-symbolic,icons/custom/007-rows first.svg,grid-rows-first
-icon-symbolic,icons/custom/008-columns first.svg,grid-columns-first
-icon-symbolic,icons/custom/009-all.svg,all
-icon-symbolic,icons/custom/010-jump.svg,jump-to
-icon-symbolic,icons/custom/011-random.svg,loop-random
-icon-symbolic,icons/custom/012-loop reset.svg,loop-reset
-icon-symbolic,icons/custom/013-loop start.svg,loop-start
-icon-symbolic,icons/custom/014-loop end.svg,loop-end
-icon-symbolic,icons/custom/015-fullscreen.svg,fullscreen
-icon-symbolic,icons/custom/020-plus-1.svg,seek-plus-1
-icon-symbolic,icons/custom/021-plus-5.svg,seek-plus-5
-icon-symbolic,icons/custom/022-plus-10.svg,seek-plus-10
-icon-symbolic,icons/custom/023-minus-1.svg,seek-minus-1
-icon-symbolic,icons/custom/024-minus-5.svg,seek-minus-5
-icon-symbolic,icons/custom/025-minus-10.svg,seek-minus-10
-icon-symbolic,icons/custom/026-speed.svg,speed
-icon-symbolic,icons/custom/027-speed faster.svg,speed-faster
-icon-symbolic,icons/custom/028-speed slower.svg,speed-slower
-icon-symbolic,icons/custom/029-speed reset.svg,speed-reset
-icon-symbolic,icons/custom/030-question.svg,question
-icon-symbolic,icons/custom/031-grid fit.svg,grid-fit
-icon-symbolic,icons/custom/032-grid size.svg,grid-size
-icon-symbolic,icons/custom/033-seek sync.svg,seek-sync
-icon-symbolic,icons/custom/034-previous frame.svg,previous-frame
-icon-symbolic,icons/custom/035-next frame.svg,next-frame
-icon-symbolic,icons/custom/036-loop single.svg,loop-single
-icon-symbolic,icons/custom/037-loop dir.svg,loop-dir
-icon-symbolic,icons/custom/038-loop dir shuffle.svg,loop-dir-shuffle
-icon-symbolic,icons/custom/039-information.svg,information
-icon-symbolic,icons/custom/040-stream quality.svg,stream-quality
-icon-symbolic,icons/custom/041-audio only.svg,audio-only
-icon-symbolic,icons/custom/042-error.svg,error
-icon-symbolic,icons/custom/043-network error.svg,network-error
-icon-symbolic,icons/custom/044-seek sync time.svg,seek-sync-time
-icon-symbolic,icons/custom/045-seek sync percent.svg,seek-sync-percent
-icon-symbolic,icons/custom/046-empty.svg,empty
-icon-symbolic,icons/custom/047-warning.svg,warning
-icon-symbolic,icons/custom/048-settings.svg,settings
-icon-symbolic,icons/custom/049-checkmark.svg,checkmark
-icon-symbolic,icons/custom/050-track.svg,track
-icon-symbolic,icons/custom/051-add url.svg,add-url
-icon-symbolic,icons/custom/052-media file.svg,add-files
-icon-symbolic,icons/custom/053-recent list.svg,add-recent
-icon-symbolic,icons/custom/054-video.svg,video
-icon-symbolic,icons/custom/055-stereo mode.svg,stereo-mode
-icon-symbolic,icons/custom/056-playback.svg,playback
-icon-symbolic,icons/custom/057-volume increase.svg,volume-increase
-icon-symbolic,icons/custom/058-volume decrease.svg,volume-decrease
-icon-symbolic,icons/custom/059-volume unmute.svg,volume-unmute
-icon-symbolic,icons/custom/060-single mode on.svg,single-mode-on
-icon-symbolic,icons/custom/061-single mode off.svg,single-mode-off
-icon-symbolic,icons/custom/062-play pause.svg,play-pause
-icon-symbolic,icons/custom/063-rotate.svg,rotate
-icon-symbolic,icons/custom/064-crop.svg,crop
-icon-symbolic,icons/custom/065-grid-show-all.svg,grid-show-all
+icon-symbolic,icons/custom/add url.svg,add-url
+icon-symbolic,icons/custom/all.svg,all
+icon-symbolic,icons/custom/aspect fit.svg,aspect-fit
+icon-symbolic,icons/custom/aspect none.svg,aspect-none
+icon-symbolic,icons/custom/aspect stretch.svg,aspect-stretch
+icon-symbolic,icons/custom/aspect.svg,aspect
+icon-symbolic,icons/custom/audio only.svg,audio-only
+icon-symbolic,icons/custom/checkmark.svg,checkmark
+icon-symbolic,icons/custom/close all.svg,close-playlist
+icon-symbolic,icons/custom/columns first.svg,grid-columns-first
+icon-symbolic,icons/custom/crop.svg,crop
+icon-symbolic,icons/custom/empty.svg,empty
+icon-symbolic,icons/custom/error.svg,error
+icon-symbolic,icons/custom/fullscreen.svg,fullscreen
+icon-symbolic,icons/custom/grid fit.svg,grid-fit
+icon-symbolic,icons/custom/grid size.svg,grid-size
+icon-symbolic,icons/custom/grid-show-all.svg,grid-show-all
+icon-symbolic,icons/custom/information.svg,information
+icon-symbolic,icons/custom/jump.svg,jump-to
+icon-symbolic,icons/custom/loop dir shuffle.svg,loop-dir-shuffle
+icon-symbolic,icons/custom/loop dir.svg,loop-dir
+icon-symbolic,icons/custom/loop end.svg,loop-end
+icon-symbolic,icons/custom/loop reset.svg,loop-reset
+icon-symbolic,icons/custom/loop single.svg,loop-single
+icon-symbolic,icons/custom/loop start.svg,loop-start
+icon-symbolic,icons/custom/media file.svg,add-files
+icon-symbolic,icons/custom/minimize window.svg,minimize
+icon-symbolic,icons/custom/minus-1.svg,seek-minus-1
+icon-symbolic,icons/custom/minus-10.svg,seek-minus-10
+icon-symbolic,icons/custom/minus-5.svg,seek-minus-5
+icon-symbolic,icons/custom/network error.svg,network-error
+icon-symbolic,icons/custom/next frame.svg,next-frame
+icon-symbolic,icons/custom/play pause.svg,play-pause
+icon-symbolic,icons/custom/playback.svg,playback
+icon-symbolic,icons/custom/plus-1.svg,seek-plus-1
+icon-symbolic,icons/custom/plus-10.svg,seek-plus-10
+icon-symbolic,icons/custom/plus-5.svg,seek-plus-5
+icon-symbolic,icons/custom/previous frame.svg,previous-frame
+icon-symbolic,icons/custom/question.svg,question
+icon-symbolic,icons/custom/random.svg,loop-random
+icon-symbolic,icons/custom/recent list.svg,add-recent
+icon-symbolic,icons/custom/rotate.svg,rotate
+icon-symbolic,icons/custom/rows first.svg,grid-rows-first
+icon-symbolic,icons/custom/seek sync percent.svg,seek-sync-percent
+icon-symbolic,icons/custom/seek sync time.svg,seek-sync-time
+icon-symbolic,icons/custom/seek sync.svg,seek-sync
+icon-symbolic,icons/custom/settings.svg,settings
+icon-symbolic,icons/custom/single mode off.svg,single-mode-off
+icon-symbolic,icons/custom/single mode on.svg,single-mode-on
+icon-symbolic,icons/custom/speed faster.svg,speed-faster
+icon-symbolic,icons/custom/speed reset.svg,speed-reset
+icon-symbolic,icons/custom/speed slower.svg,speed-slower
+icon-symbolic,icons/custom/speed.svg,speed
+icon-symbolic,icons/custom/stereo mode.svg,stereo-mode
+icon-symbolic,icons/custom/stream quality.svg,stream-quality
+icon-symbolic,icons/custom/track.svg,track
+icon-symbolic,icons/custom/video.svg,video
+icon-symbolic,icons/custom/volume decrease.svg,volume-decrease
+icon-symbolic,icons/custom/volume increase.svg,volume-increase
+icon-symbolic,icons/custom/volume unmute.svg,volume-unmute
+icon-symbolic,icons/custom/warning.svg,warning
 translation,translations/ar_SA.ts,ar_SA
 translation,translations/cs_CZ.ts,cs_CZ
 translation,translations/de_DE.ts,de_DE
