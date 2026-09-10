@@ -14,7 +14,6 @@ repos:
         exclude: \.(patch)$
         args: [ --markdown-linebreak-ext=md ]
       - id: mixed-line-ending
-        exclude_types: [ svg ]
         args: [ '--fix=lf' ]
       - id: check-toml
       - id: check-yaml
