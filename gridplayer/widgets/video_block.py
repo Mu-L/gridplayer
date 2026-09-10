@@ -322,8 +322,6 @@ class VideoBlock(QWidget):
 
     def ui_setup(self):
         self.setMouseTracking(True)
-        self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setAutoFillBackground(True)
 
         if self._driver_is_opengl():
             self.layout_main = QStackedLayoutFloating(self)
@@ -726,21 +724,25 @@ class VideoBlock(QWidget):
 
     def set_drop_indicator(self, indicator: DropIndicator):
         self._drop_indicator = indicator
+        opaque_drag = self._ctx.is_drag_ui and getattr(self.overlay, "is_opaque", False)
+        # Unmap before clearing Shape; setMask on a mapped opaque window
+        # flashes Window fill (default white) over the whole cell.
+        if indicator == DropIndicator.NONE and opaque_drag:
+            self.overlay.hide()
         self.overlay.set_drop_indicator(indicator)
-        self.update()
+        if self.is_stopped:
+            self.update()
         if indicator != DropIndicator.NONE:
             self.overlay.show()
             self.overlay_hide_timer.stop()
-            return
-
-        # Translucent overlays stay mapped (X11 DND hide/show loops).
-        # Opaque HW overlays must not: empty mask = full opaque window.
-        if self._ctx.is_drag_ui and getattr(self.overlay, "is_opaque", False):
-            self.overlay.hide()
 
     def set_drag_ui(self, is_drag_ui: bool):
+        if is_drag_ui and getattr(self.overlay, "is_opaque", False):
+            if self._drop_indicator == DropIndicator.NONE:
+                self.overlay.hide()
         self.overlay.set_is_chrome_visible(not is_drag_ui)
-        self.update()
+        if self.is_stopped:
+            self.update()
         if is_drag_ui:
             self.overlay_hide_timer.stop()
             return
@@ -759,6 +761,13 @@ class VideoBlock(QWidget):
     @property
     def is_stopped(self) -> bool:
         return bool(self.video_params and self.video_params.is_stopped)
+
+    def _sync_cell_background(self) -> None:
+        # HW vout is a native child. Filling this widget on expose paints
+        # QPalette.Window (white) over the whole cell.
+        fill = self.is_stopped
+        self.setAttribute(Qt.WA_StyledBackground, fill)
+        self.setAutoFillBackground(fill)
 
     @property
     def is_playable(self) -> bool:
@@ -883,7 +892,10 @@ class VideoBlock(QWidget):
         self.video_params.playback_state = state
         self.is_paused_change.emit(self.video_params.is_paused)
         self.is_stopped_change.emit(self.is_stopped)
-        self.update()
+        was_filled = self.autoFillBackground()
+        self._sync_cell_background()
+        if self.is_stopped or was_filled:
+            self.update()
         self.show_overlay()
 
     def apply_snapshot(self, snapshot: Video):
@@ -959,12 +971,14 @@ class VideoBlock(QWidget):
         self.is_paused_change.emit(True)
         self.is_stopped_change.emit(True)
         self.video_status.hide()
+        self._sync_cell_background()
         self.update()
         self.show_overlay()
 
     def _start_load(self):
         self.overlay_hide_timer.stop()
         self.overlay.hide()
+        self._sync_cell_background()
         self._ensure_video_driver()
         if self.video_params.is_http_url:
             self.url_resolver.resolve(self.video_params.uri)

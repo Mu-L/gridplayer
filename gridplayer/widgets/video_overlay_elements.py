@@ -591,7 +591,7 @@ class OverlayDiscBadge(OverlayWidget):
             # QRegion.Ellipse 1:1, so leftover mask dots showed Window white.
             disc_rect = self._glyph_mask_rect()
             mask = QRegion(disc_rect, QRegion.Ellipse)
-            self.setMask(mask)
+            self._set_mask_if_changed(mask)
             painter.setClipRegion(mask)
             painter.fillRect(disc_rect, self._circle_color)
             painter.setRenderHint(QPainter.Antialiasing)
@@ -627,10 +627,17 @@ class OverlayDiscBadge(OverlayWidget):
 
     def _update_mask(self):
         if not self._is_parent_opaque() or not self._is_badge_visible():
-            self.clearMask()
+            if not self.mask().isEmpty():
+                self.clearMask()
             return
 
-        self.setMask(QRegion(self._glyph_mask_rect(), QRegion.Ellipse))
+        self._set_mask_if_changed(QRegion(self._glyph_mask_rect(), QRegion.Ellipse))
+
+    def _set_mask_if_changed(self, mask: QRegion) -> None:
+        # X11 Shape setMask briefly unmasks the widget; the opaque parent
+        # fills Window (default white) over the whole cell.
+        if mask != self.mask():
+            self.setMask(mask)
 
     def _show_badge(self):
         self._update_mask()
@@ -639,7 +646,8 @@ class OverlayDiscBadge(OverlayWidget):
 
     def _hide_badge(self):
         self.hide()
-        self.clearMask()
+        if not self.mask().isEmpty():
+            self.clearMask()
 
 
 class OverlayDropIndicator(OverlayDiscBadge):
@@ -656,10 +664,16 @@ class OverlayDropIndicator(OverlayDiscBadge):
                 self._hide_badge()
             return
 
+        was_visible = self._indicator != DropIndicator.NONE
         self._indicator = indicator
 
         if indicator == DropIndicator.NONE:
             self._hide_badge()
+            return
+
+        if was_visible:
+            # Same disc mask, new glyph. Re-applying X11 Shape flashes the cell.
+            self.update()
             return
 
         self._show_badge()

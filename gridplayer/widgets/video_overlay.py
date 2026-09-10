@@ -458,11 +458,9 @@ class OverlayBlockFloating(OverlayBlock):
         if not self.is_opaque:
             return
 
-        new_mask = self._opaque_mask()
         # setMask during paint clips to the old shape, so any newly shown
         # child (the border ring) would not be drawn this frame.
-        if new_mask != self.mask():
-            self.setMask(new_mask)
+        self._apply_opaque_mask(self._opaque_mask())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -472,7 +470,13 @@ class OverlayBlockFloating(OverlayBlock):
         if not self.is_opaque:
             return
 
-        self.setMask(self._opaque_mask())
+        self._apply_opaque_mask(self._opaque_mask())
+
+    def _apply_opaque_mask(self, new_mask: QRegion) -> None:
+        # X11 Shape setMask briefly unmasks the window. Opaque fill is the
+        # video color (default white), so a redundant reshape flashes the cell.
+        if new_mask != self.mask():
+            self.setMask(new_mask)
 
     def _opaque_mask(self) -> QRegion:
         dummy = QRegion(QRect(0, 0, 1, 1))

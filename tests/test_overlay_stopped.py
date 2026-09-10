@@ -2,15 +2,16 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor, QRegion
+from PyQt5.QtWidgets import QApplication, QWidget
 
 from gridplayer.params.static import VideoEndAction
 from gridplayer.player.managers.active_block import ActiveBlockManager
 from gridplayer.player.managers.video_blocks import VideoBlocksManager
 from gridplayer.utils.drop_zone import DropIndicator
 from gridplayer.widgets.video_block import VideoBlock
-from gridplayer.widgets.video_overlay import OverlayBlock
+from gridplayer.widgets.video_overlay import OverlayBlock, OverlayBlockFloating
 from gridplayer.widgets.video_overlay_elements import OverlayDropIndicator
 
 
@@ -307,9 +308,10 @@ def test_stopped_cell_hides_idle_disc_on_drop_target(mocker):
     disc.assert_not_called()
 
 
-def test_set_drop_indicator_repaints_cell(mocker):
+def test_set_drop_indicator_repaints_stopped_cell(mocker):
     block = mocker.Mock()
     block._ctx.is_drag_ui = True
+    block.is_stopped = True
 
     VideoBlock.set_drop_indicator(block, DropIndicator.DOT)
 
@@ -318,7 +320,89 @@ def test_set_drop_indicator_repaints_cell(mocker):
     block.overlay.show.assert_called()
 
 
+def test_set_drop_indicator_does_not_repaint_playing_cell(mocker):
+    block = mocker.Mock()
+    block._ctx.is_drag_ui = True
+    block.is_stopped = False
+
+    VideoBlock.set_drop_indicator(block, DropIndicator.DOT)
+
+    block.update.assert_not_called()
+    block.overlay.show.assert_called()
+
+
 def test_drop_indicator_default_circle_matches_opaque_fill():
     badge = OverlayDropIndicator()
 
     assert badge._circle_color.getRgb()[:3] == (0, 0, 0)
+
+
+def test_drop_indicator_glyph_change_does_not_reset_mask():
+    parent = QWidget()
+    parent.is_opaque = True
+    parent.resize(200, 200)
+    parent.show()
+    badge = OverlayDropIndicator(parent=parent)
+    badge.resize(200, 200)
+    badge.set_indicator(DropIndicator.DOT)
+    mask = QRegion(badge.mask())
+
+    badge.set_indicator(DropIndicator.ARROW_LEFT)
+
+    assert not badge.isHidden()
+    assert badge.mask() == mask
+
+
+def test_opaque_mask_not_reapplied_when_unchanged(mocker):
+    parent = QWidget()
+    overlay = OverlayBlockFloating(parent)
+    overlay.is_opaque = True
+    overlay.refresh_opaque_mask()
+    set_mask = mocker.spy(overlay, "setMask")
+
+    overlay.refresh_opaque_mask()
+
+    set_mask.assert_not_called()
+
+
+def test_clear_drop_indicator_hides_opaque_overlay_before_mask_change(mocker):
+    block = mocker.Mock()
+    block._ctx.is_drag_ui = True
+    block.overlay.is_opaque = True
+    order = []
+    block.overlay.hide.side_effect = lambda: order.append("hide")
+    block.overlay.set_drop_indicator.side_effect = lambda *_a, **_k: order.append("set")
+
+    VideoBlock.set_drop_indicator(block, DropIndicator.NONE)
+
+    assert order == ["hide", "set"]
+    block.overlay.show.assert_not_called()
+
+
+def test_sync_cell_background_only_fills_when_stopped(mocker):
+    block = mocker.Mock()
+    block.is_stopped = True
+    VideoBlock._sync_cell_background(block)
+    block.setAttribute.assert_called_with(Qt.WA_StyledBackground, True)
+    block.setAutoFillBackground.assert_called_with(True)
+
+    block.reset_mock()
+    block.is_stopped = False
+    VideoBlock._sync_cell_background(block)
+    block.setAttribute.assert_called_with(Qt.WA_StyledBackground, False)
+    block.setAutoFillBackground.assert_called_with(False)
+
+
+def test_set_drag_ui_hides_opaque_overlay_before_chrome_change(mocker):
+    block = mocker.Mock()
+    block._drop_indicator = DropIndicator.NONE
+    block.overlay.is_opaque = True
+    order = []
+    block.overlay.hide.side_effect = lambda: order.append("hide")
+    block.overlay.set_is_chrome_visible.side_effect = lambda *_a, **_k: order.append(
+        "chrome"
+    )
+
+    VideoBlock.set_drag_ui(block, True)
+
+    assert order == ["hide", "chrome"]
