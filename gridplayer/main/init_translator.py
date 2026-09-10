@@ -30,7 +30,7 @@ def init_translator(app):
         log.warning(f"Failed to load QT translation for {lang}")
 
     translator = QTranslator(app)
-    if translator.load(lang, ":/translations/"):
+    if translator.load(lang, str(env.RESOURCES_DIR / "translations")):
         app.installTranslator(translator)
     else:
         log.warning(f"Failed to load translation for {lang}")

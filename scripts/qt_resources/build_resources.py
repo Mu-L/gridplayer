@@ -5,26 +5,10 @@ import subprocess
 from pathlib import Path
 
 
-class RCC:
+class ResourceBuilder:
     def __init__(self, src_dir: Path, dst_dir: Path):
-        self.qrc_file = [
-            "<!DOCTYPE RCC>",
-            '<RCC version="1.0">',
-            "<qresource>",
-        ]
-
         self.src_dir = src_dir
         self.dst_dir = dst_dir
-
-    def write_qrc(self):
-        self.qrc_file += ["</qresource>", "</RCC>", ""]
-
-        qrc_txt = "\n".join(self.qrc_file)
-
-        qrc_path = self.dst_dir / "resources.qrc"
-
-        with open(qrc_path, "w") as f:
-            f.write(qrc_txt)
 
     def copy_file(self, src_path: Path, dst_path: Path):
         f_src = self.src_dir / src_path
@@ -34,8 +18,6 @@ class RCC:
 
         shutil.copy(f_src, f_dst)
 
-        self.add_file(dst_path)
-
         return f_dst
 
     def new_file(self, dst_path: Path, content: str):
@@ -43,15 +25,10 @@ class RCC:
 
         f_dst.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(f_dst, "w") as f:
+        with open(f_dst, "w", newline="\n") as f:
             f.write(content)
 
-        self.add_file(dst_path)
-
         return f_dst
-
-    def add_file(self, path: Path):
-        self.qrc_file.append(f"<file>{path.as_posix()}</file>")
 
 
 def make_dark(svg_path):
@@ -71,7 +48,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    rcc = RCC(args.resources_dir, args.build_dir)
+    builder = ResourceBuilder(args.resources_dir, args.build_dir)
 
     files = []
     icons = []
@@ -91,7 +68,7 @@ if __name__ == "__main__":
             type_map[f_type].append((Path(f_path), Path(f_name)))
 
     for f_path, f_name in files:
-        rcc.copy_file(f_path, f_name)
+        builder.copy_file(f_path, f_name)
 
     for f_path, f_name in icons:
         if not f_name.suffix:
@@ -99,7 +76,7 @@ if __name__ == "__main__":
 
         dst_path = Path("icons") / f_name
 
-        rcc.copy_file(f_path, dst_path)
+        builder.copy_file(f_path, dst_path)
 
     if icons_symbolic:
         for theme in ("dark", "light"):
@@ -116,7 +93,7 @@ if __name__ == "__main__":
                 "Type=Scalable\n"
             )
 
-            rcc.new_file(dst_path, index)
+            builder.new_file(dst_path, index)
 
             for f_path, f_name in icons_symbolic:
                 if not f_name.suffix:
@@ -124,7 +101,7 @@ if __name__ == "__main__":
 
                 dst_path = Path("icons") / theme / "scalable" / f_name
 
-                f_dst = rcc.copy_file(f_path, dst_path)
+                f_dst = builder.copy_file(f_path, dst_path)
 
                 if theme == "dark":
                     make_dark(f_dst)
@@ -144,9 +121,5 @@ if __name__ == "__main__":
                     args.build_dir / dst_path,
                 ]
             )
-
-            rcc.add_file(dst_path)
         else:
             raise ValueError(f"Unknown translation file type: {f_path}")
-
-    rcc.write_qrc()

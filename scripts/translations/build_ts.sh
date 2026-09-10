@@ -20,7 +20,7 @@ APP_BASE_TMP="$TEMPD/$APP_MODULE"
 echo "Expanding source code lines"
 
 # Expanding all lines so it will be easier for PYLUPDATE to parse long translate(***)
-$BLACK -q --line-length 200000000000 --config "format.skip-magic-trailing-comma = true" --exclude "resources_bin.py" "$APP_BASE_TMP"
+$BLACK -q --line-length 200000000000 --config "format.skip-magic-trailing-comma = true" "$APP_BASE_TMP"
 
 echo "Extracting translation lines"
 cp "$DEST_TS_FILE" "$APP_BASE_TMP/en_US.ts"

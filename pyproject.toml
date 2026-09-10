@@ -64,7 +64,7 @@ dev = [
 module-root = ""
 
 [tool.ruff]
-extend-exclude = ["gridplayer/resources_bin.py", "gridplayer/vlc_player/vlc.py"]
+extend-exclude = ["gridplayer/vlc_player/vlc.py"]
 force-exclude = true
 
 [tool.ruff.format]

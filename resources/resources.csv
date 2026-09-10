@@ -1,7 +1,8 @@
-file,fonts/Hack/Hack-Bold.ttf,fonts/Hack-Bold.ttf
-file,fonts/Hack/Hack-BoldItalic.ttf,fonts/Hack-BoldItalic.ttf
-file,fonts/Hack/Hack-Italic.ttf,fonts/Hack-Italic.ttf
-file,fonts/Hack/Hack-Regular.ttf,fonts/Hack-Regular.ttf
+file,fonts/Hack/Hack-Bold.ttf,fonts/Hack/Hack-Bold.ttf
+file,fonts/Hack/Hack-BoldItalic.ttf,fonts/Hack/Hack-BoldItalic.ttf
+file,fonts/Hack/Hack-Italic.ttf,fonts/Hack/Hack-Italic.ttf
+file,fonts/Hack/Hack-Regular.ttf,fonts/Hack/Hack-Regular.ttf
+file,fonts/Hack/LICENSE.md,fonts/Hack/LICENSE.md
 icon,icons/main/png/48x48.png,main_ico_48
 icon,icons/main/svg/big.svg,main_ico_big
 icon,icons/main/svg/normal.svg,main_ico_svg

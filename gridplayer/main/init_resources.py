@@ -1,12 +1,18 @@
 from PyQt5.QtCore import QDir, QDirIterator
-from PyQt5.QtGui import QFontDatabase
+from PyQt5.QtGui import QFontDatabase, QIcon
+
+from gridplayer.params import env
 
 
 def init_resources():
-    # noinspection PyUnresolvedReferences
-    from gridplayer import resources_bin  # noqa: F401
+    icon_theme_dir = env.RESOURCES_DIR / "icons"
+    theme_paths = [*QIcon.themeSearchPaths(), str(icon_theme_dir)]
+    QIcon.setThemeSearchPaths(theme_paths)
 
-    fonts = QDirIterator(":/fonts", ("*.ttf",), QDir.Files)
+    fonts_dir = env.RESOURCES_DIR / "fonts"
+    fonts = QDirIterator(
+        str(fonts_dir), ("*.ttf",), QDir.Files, QDirIterator.Subdirectories
+    )
 
     while fonts.hasNext():
         font = fonts.next()

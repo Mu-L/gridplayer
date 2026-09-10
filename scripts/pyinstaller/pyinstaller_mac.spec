@@ -91,6 +91,9 @@ del_data = []
 add_data = [
     (os.path.join(BUILD_DIR, "mime.icns"), '.')
 ]
+add_data += [
+    (os.path.join(SRC_DIR, "resources"), os.path.join("gridplayer", "resources")),
+]
 add_data += collect_data_files('streamlink.plugins', include_py_files=True)
 
 block_cipher = None

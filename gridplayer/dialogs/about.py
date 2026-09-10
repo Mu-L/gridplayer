@@ -38,7 +38,8 @@ class AboutDialog(QDialog, Ui_AboutDialog):
 
         self.setupUi(self)
 
-        self.logo.setPixmap(QIcon(":/icons/main_ico_big.svg").pixmap(self.logo.size()))
+        logo_icon = QIcon(str(env.RESOURCES_DIR / "icons" / "main_ico_big.svg"))
+        self.logo.setPixmap(logo_icon.pixmap(self.logo.size()))
 
         self.name.setText(__display_name__)
         self.version.setText(

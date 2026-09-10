@@ -1,3 +1,4 @@
+import importlib.resources
 import os
 import platform
 import sys
@@ -29,6 +30,18 @@ IS_FLATPAK = IS_LINUX and "FLATPAK_ID" in os.environ
 IS_KDE = _is_kde()
 
 PYINSTALLER_LIB_ROOT = Path(sys._MEIPASS) if IS_PYINSTALLER else Path.cwd()
+
+
+def _resolve_resources_dir() -> Path:
+    # When frozen, resources are collected as data files under sys._MEIPASS;
+    # importlib.resources is unreliable there because the package lives in the
+    # PYZ archive.
+    if IS_PYINSTALLER:
+        return PYINSTALLER_LIB_ROOT / "gridplayer" / "resources"
+    return Path(str(importlib.resources.files("gridplayer") / "resources"))
+
+
+RESOURCES_DIR = _resolve_resources_dir()
 
 
 VLC_VERSION = None

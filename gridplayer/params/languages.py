@@ -2,6 +2,7 @@ from typing import NamedTuple
 
 from PyQt5.QtCore import QLocale
 
+from gridplayer.params import env
 from gridplayer.params.languages_contrib import LANGUAGES_CONTRIB
 
 
@@ -33,7 +34,8 @@ class Language(NamedTuple):
 
     @property
     def icon_path(self):
-        return f":/icons/flag_{self.code}.svg"
+        icons_dir = env.RESOURCES_DIR / "icons"
+        return str(icons_dir / f"flag_{self.code}.svg")
 
 
 def get_system_language() -> str:

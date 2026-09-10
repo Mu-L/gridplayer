@@ -59,10 +59,9 @@ Install dependencies:
 sudo apt install appstream-util
 ```
 
-When new resources are added, the `resources_bin.py` needs to be updated
+When new resources are added, the compiled resources inside `gridplayer/resources` need to be updated
 
 ```bash
-sudo apt install dos2unix
 sudo apt install qttools5-dev-tools		# for lrelease
 just generate-resources
 ```
