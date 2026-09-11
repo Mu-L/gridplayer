@@ -114,6 +114,8 @@ icon-symbolic,icons/custom/volume decrease.svg,volume-decrease
 icon-symbolic,icons/custom/volume increase.svg,volume-increase
 icon-symbolic,icons/custom/volume unmute.svg,volume-unmute
 icon-symbolic,icons/custom/warning.svg,warning
+icon-symbolic,icons/custom/stop.svg,stop
+icon-symbolic,icons/custom/playback finish.svg,playback-finish
 translation,translations/ar_SA.ts,ar_SA
 translation,translations/cs_CZ.ts,cs_CZ
 translation,translations/de_DE.ts,de_DE

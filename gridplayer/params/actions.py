@@ -24,7 +24,7 @@ ACTIONS = MappingProxyType(
         },
         "Stop": {
             "title": translate("Actions", "Stop"),
-            "icon": "empty",
+            "icon": "stop",
             "func": ("active", "stop_playback"),
             "show_if": "is_active_initialized",
         },
@@ -334,7 +334,7 @@ ACTIONS = MappingProxyType(
         },
         "When Finished Stop": {
             "title": translate("Actions", "Stop"),
-            "icon": "empty",
+            "icon": "stop",
             "func": ("active", "set_end_action", VideoEndAction.STOP),
             "check_if": (
                 "is_active_param_set_to",
@@ -762,7 +762,7 @@ ACTIONS = MappingProxyType(
         },
         "Stop [ALL]": {
             "title": translate("Actions", "Stop"),
-            "icon": "empty",
+            "icon": "stop",
             "func": ("all", "stop_playback"),
             "show_if": "is_any_videos_initialized",
         },
@@ -1021,7 +1021,7 @@ ACTIONS = MappingProxyType(
         },
         "When Finished Stop [ALL]": {
             "title": translate("Actions", "Stop"),
-            "icon": "empty",
+            "icon": "stop",
             "func": ("all", "set_end_action", VideoEndAction.STOP),
             "show_if": "is_any_videos_playable_not_live",
         },

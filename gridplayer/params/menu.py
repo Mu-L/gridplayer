@@ -8,7 +8,7 @@ SUBMENUS = MappingProxyType(
         "Loop": {"title": translate("Actions", "Loop"), "icon": "loop"},
         "When Finished": {
             "title": translate("Actions", "When Finished"),
-            "icon": "empty",
+            "icon": "playback-finish",
         },
         "Speed": {"title": translate("Actions", "Speed"), "icon": "speed"},
         "Zoom": {"title": translate("Actions", "Zoom"), "icon": "zoom"},
