@@ -192,6 +192,26 @@ def test_stop_playback_resets_position_and_segment_loop(mocker):
     block.loop_end_change.emit.assert_called_with(100.0)
 
 
+def test_set_playback_state_syncs_overlay_when_already_playing(mocker):
+    block = _block(mocker, playback_state=VideoInitialState.PLAYING)
+
+    VideoBlock._set_playback_state(block, VideoInitialState.PLAYING)
+
+    block.is_paused_change.emit.assert_called_once_with(False)
+    block.is_stopped_change.emit.assert_not_called()
+    block.show_overlay.assert_not_called()
+
+
+def test_set_playback_state_syncs_overlay_when_already_stopped(mocker):
+    block = _block(mocker, playback_state=VideoInitialState.STOPPED)
+
+    VideoBlock._set_playback_state(block, VideoInitialState.STOPPED)
+
+    block.is_paused_change.emit.assert_called_once_with(True)
+    block.is_stopped_change.emit.assert_called_once_with(True)
+    block.show_overlay.assert_called_once()
+
+
 def test_set_video_stopped_defers_load(mocker):
     block = mocker.Mock()
     block.video_params = None

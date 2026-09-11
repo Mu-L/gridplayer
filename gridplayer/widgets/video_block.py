@@ -897,6 +897,11 @@ class VideoBlock(QWidget):
         if self.video_params is None:
             return
         if self.video_params.playback_state == state:
+            # VLC's status may already match the model (the initial PLAYING
+            # state comes from session defaults before any VLC callback, and
+            # snapshots can overwrite the model before the callback lands).
+            # Still sync the overlay so the play/pause button isn't stuck.
+            self.is_paused_change.emit(self.video_params.is_paused)
             if state is VideoInitialState.STOPPED:
                 self.is_stopped_change.emit(True)
                 self.show_overlay()

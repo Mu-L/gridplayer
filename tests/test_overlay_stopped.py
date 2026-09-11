@@ -73,6 +73,18 @@ def test_stopped_play_button_stays_bottom_left():
     assert btn.y() > overlay.height() * 0.6
 
 
+def test_play_pause_button_tracks_paused_state():
+    overlay = OverlayBlock()
+
+    overlay.set_is_paused(False)
+
+    assert overlay.play_pause_button.is_off is True
+
+    overlay.set_is_paused(True)
+
+    assert overlay.play_pause_button.is_off is False
+
+
 def test_cmd_active_shows_overlay_when_stopped_uninitialized(mocker):
     block = mocker.Mock()
     block.is_video_initialized = False
