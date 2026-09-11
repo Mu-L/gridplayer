@@ -17,6 +17,7 @@ from gridplayer.models.video import (
     Video,
     VideoBlockMime,
 )
+from gridplayer.params import env
 from gridplayer.params.static import (
     MAX_RATE,
     MAX_SCALE,
@@ -239,8 +240,21 @@ class VideoBlock(QWidget):
             self.layout_main.addWidget(self.video_driver)
         else:
             self.layout_main.insertWidget(overlay_index, self.video_driver)
-        self.video_driver.hide()
+        self._hide_video_driver()
         return self.video_driver
+
+    def _hide_video_driver(self):
+        if self.video_driver is None:
+            return
+
+        # Don't hide VLC HW frame widget, otherwise first frame comes out glitchy and takes time to normalize
+        # Happens only on Windows
+        # Possibly related issue - short ~100-300ms "freeze-frame" lag before video starts actually playing
+        # especially noticeable on streaming vids, also happens on Linux
+        if env.IS_WINDOWS and self._driver_is_opengl():
+            return
+
+        self.video_driver.hide()
 
     def _destroy_video_driver(self):
         self._is_state_change_in_progress = False
@@ -381,8 +395,7 @@ class VideoBlock(QWidget):
 
     def set_status(self, status):
         self.overlay.hide()
-        if self.video_driver is not None:
-            self.video_driver.hide()
+        self._hide_video_driver()
 
         self.video_status.icon = status
         self.video_status.show()
